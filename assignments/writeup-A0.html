@@ -1,6 +1,6 @@
 **Assignment 0 Report**
 
-AndrewID: XXXX
+AndrewID: yueli3
 
 (##) About this template
 
@@ -13,37 +13,38 @@ AndrewID: XXXX
 (##) A0T1
 
 Step 1: Clone
-<div class="twentytwenty-container">
+<!--<div class="twentytwenty-container">
     <img src="A0-writeup/reference/step1-github-ref-1.png" alt="Github-CLI">
 </div>
-or
+or -->
+
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step1-github-ref-2.png" alt="Github-Web">
+    <img src="A0-writeup/student/step1-github.png" alt="Github-Web">
 </div>
 
 Step 2: General Setup
 
 Visual Studio:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-vs-ref.png" alt="Visual Studio">
+    <img src="A0-writeup/student/step2-vs.png" alt="Visual Studio">
 </div>
 
 Node:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-node-ref.png" alt="Node">
+    <img src="A0-writeup/student/step2-node.png" alt="Node">
 </div>
 
 Nest-libs:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-nest-libs-ref.png" alt="Nest-libs">
+    <img src="A0-writeup/student/step2-nest-libs.png" alt="Nest-libs">
 </div>
 
 Step 3: Build and Run
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step3-GUI-ref.png" alt="GUI">
+    <img src="A0-writeup/student/step3-GUI.png" alt="GUI">
 </div>
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step3-tests-ref.png" alt="Run-tests">
+    <img src="A0-writeup/student/step3-tests.png" alt="Run-tests">
 </div>
 
 (##) A0T2
@@ -53,13 +54,13 @@ Your completion of this task will be graded based on your `test.a0.task2.problem
 For each of the problems you solved in task 2, characterise the bug in your own words and explain one other scenario that may cause this 
 type of bug.
 
-Problem 1:
+Problem 1: The identifiers string, cout, and endl should be prefixed with the std namespace, resulting in std::string, std::cout, and std::endl.
 
-Problem 2:
+Problem 2: The result of the formula y / factor is an integer because both y and factor are of integer data type. To ensure the function operates as expected, we can cast factor to a float, resulting in x < (y / (float)factor)
 
-Problem 3:
+Problem 3: The function one_to_ten.end() points to the position following the last element in the vector one_to_ten, not to the last element itself. If we want to access the last element, we can use one_to_ten.back() or *(--one_to_ten.end()).
 
-Problem 4:
+Problem 4: If vec1.at(i) is equal to vec2.at(j), the return value is 1. Conversely, the return value is 0 when vec1.at(i) does not equal vec2.at(j). To check if three numbers are identical, we should use the condition vec1.at(i) == vec2.at(j) && vec1.at(i) == vec3.at(k).
 
 
 (##) A0T3
