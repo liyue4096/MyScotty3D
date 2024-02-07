@@ -792,7 +792,7 @@ void Pipeline<p, P, flags>:: labelEdge(std::vector<std::vector<int>> edges, std:
 }
 
 template<PrimitiveType p, class P, uint32_t flags>
-void Pipeline<p, P, flags>::getBaryCoor(std::vector<float> &weight , ClippedVertex &p, std::vector<ClippedVertex> &v){
+void Pipeline<p, P, flags>::getBaryCoor(std::vector<float> &weight , ClippedVertex &p0, std::vector<ClippedVertex> &v){
 	if (weight.size() != 3)
 	{
 		weight.resize(3);
@@ -803,17 +803,17 @@ void Pipeline<p, P, flags>::getBaryCoor(std::vector<float> &weight , ClippedVert
 
 	float pArea[3];
 
-	pArea[0] = p.fb_position.x *(v[1].fb_position.y - v[2].fb_position.y) +
-			   v[1].fb_position.x *(v[2].fb_position.y - p.fb_position.y) +
-			   v[2].fb_position.x *(p.fb_position.y - v[1].fb_position.y);
+	pArea[0] = p0.fb_position.x *(v[1].fb_position.y - v[2].fb_position.y) +
+			   v[1].fb_position.x *(v[2].fb_position.y - p0.fb_position.y) +
+			   v[2].fb_position.x *(p0.fb_position.y - v[1].fb_position.y);
 
-	pArea[1] = v[0].fb_position.x *(p.fb_position.y - v[2].fb_position.y) +
-				p.fb_position.x *(v[2].fb_position.y - v[0].fb_position.y) +
-				v[2].fb_position.x *(v[0].fb_position.y - p.fb_position.y);
+	pArea[1] = v[0].fb_position.x *(p0.fb_position.y - v[2].fb_position.y) +
+				p0.fb_position.x *(v[2].fb_position.y - v[0].fb_position.y) +
+				v[2].fb_position.x *(v[0].fb_position.y - p0.fb_position.y);
 
-	pArea[2] = v[0].fb_position.x *(v[1].fb_position.y - p.fb_position.y) +
-				v[1].fb_position.x *(p.fb_position.y - v[0].fb_position.y) +
-				p.fb_position.x *(v[0].fb_position.y - v[1].fb_position.y);
+	pArea[2] = v[0].fb_position.x *(v[1].fb_position.y - p0.fb_position.y) +
+				v[1].fb_position.x *(p0.fb_position.y - v[0].fb_position.y) +
+				p0.fb_position.x *(v[0].fb_position.y - v[1].fb_position.y);
 
 	for (size_t i = 0; i < 3; i++)
 	{

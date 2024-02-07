@@ -164,7 +164,7 @@ struct Pipeline {
 
 	static void labelEdge(std::vector<std::vector<int>> edges, std::vector<ClippedVertex> &v);
 
-	static void getBaryCoor(std::vector<float> &weight , ClippedVertex &p, std::vector<ClippedVertex> &v);
+	static inline void getBaryCoor(std::vector<float> &weight , ClippedVertex &p0, std::vector<ClippedVertex> &v);
 };
 
 
