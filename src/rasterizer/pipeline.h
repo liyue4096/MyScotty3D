@@ -13,6 +13,9 @@
 #include "../lib/vec4.h"
 
 struct Framebuffer;
+// bool onSegment(Vec3 p, Vec3 q, Vec3 r);
+// int orientation(Vec3 p, Vec3 q, Vec3 r);
+// bool doSegmentsIntersect(Vec3 p1, Vec3 q1, Vec3 p2, Vec3 q2);
 
 // A `Pipeline` can rasterize two primitive types:
 enum class PrimitiveType {
@@ -153,4 +156,24 @@ struct Pipeline {
 	//  	framebuffer (must not be null): framebuffer to write results into
 	static void run(std::vector<Vertex> const& vertices,
 	                typename Program::Parameters const& parameters, Framebuffer* framebuffer);
+
+	//ordered by bottom first, then left rule
+	static void sortTrianglePoint(std::vector<ClippedVertex> &v);
+
+	static int cmp_tri(ClippedVertex a, ClippedVertex b);
+
+	static void labelEdge(std::vector<std::vector<int>> edges, std::vector<ClippedVertex> &v);
+
+	static inline void getBaryCoor(std::vector<float> &weight , ClippedVertex &p, std::vector<ClippedVertex> &v);
 };
+
+
+//ordered by bottom first, then left rule
+//inline void sortTrianglePoint(std::vector<ClippedVertex> &v);
+
+//find the coef for line pass through x and y in the form ax+by+c=0
+inline void setLineCoef(std::vector<float> &coef, Vec3 x, Vec3 y);
+
+//To check whether a point p is in the range of line segement ab (weak check)
+// the z-component of p,a,b are identical in this condition
+inline bool isInLine(Vec3 p, Vec3 a, Vec3 b);

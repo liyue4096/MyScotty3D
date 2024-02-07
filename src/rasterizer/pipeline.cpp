@@ -1,4 +1,5 @@
 // clang-format off
+//#pragma warning(disable:4189 4244)
 #include "pipeline.h"
 
 #include <iostream>
@@ -142,6 +143,14 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 			// "Less" means the depth test passes when the new fragment has depth less than the stored depth.
 			// A1T4: Depth_Less
 			// TODO: implement depth test! We want to only emit fragments that have a depth less than the stored depth, hence "Depth_Less".
+			if ( f.fb_position.z < fb_depth )
+			{
+				fb_depth = f.fb_position.z;
+			}
+			else if (f.fb_position.z > fb_depth)
+			{
+				continue;
+			}				
 		} else {
 			static_assert((flags & PipelineMask_Depth) <= Pipeline_Depth_Always, "Unknown depth test flag.");
 		}
@@ -164,12 +173,12 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Add) {
 				// A1T4: Blend_Add
 				// TODO: framebuffer color should have fragment color multiplied by fragment opacity added to it.
-				fb_color = sf.color; //<-- replace this line
+				fb_color += sf.color * sf.opacity; //<-- replace this line
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Over) {
 				// A1T4: Blend_Over
 				// TODO: set framebuffer color to the result of "over" blending (also called "alpha blending") the fragment color over the framebuffer color, using the fragment's opacity
 				// 		 You may assume that the framebuffer color has its alpha premultiplied already, and you just want to compute the resulting composite color
-				fb_color = sf.color; //<-- replace this line
+				fb_color = sf.color * sf.opacity; //<-- replace this line
 			} else {
 				static_assert((flags & PipelineMask_Blend) <= Pipeline_Blend_Over, "Unknown blending flag.");
 			}
@@ -315,6 +324,48 @@ void Pipeline<p, P, flags>::clip_triangle(
 
 // -------------------------------------------------------------------------
 // rasterization functions
+// Function to check if point q lies on line segment pr
+inline bool onSegment(Vec3 p, Vec3 q, Vec3 r) {
+    if (q.x <= std::max(p.x, r.x) && q.x >= std::min(p.x, r.x) &&
+        q.y <= std::max(p.y, r.y) && q.y >= std::min(p.y, r.y))
+        return true;
+    return false;
+}
+
+
+// to determine whether A in Diamond with midpoint P
+inline bool isInPixelDiamond(Vec3 A, Vec3 P){
+	if (std::abs(P.x - A.x) + std::abs(P.y - A.y) > 0.5f)
+	{
+		return false;
+	}
+	else if (std::abs(P.x - A.x) + std::abs(P.y - A.y) == 0.5f){
+		if (A.x == P.x + 0.5f || A.y == P.y + 0.5f)
+		{
+			return false;
+		}		
+	}
+	return true;
+}
+
+inline bool paintPixel(Vec3 A, Vec3 B, Vec3 P){
+	if (isInPixelDiamond(B, P))
+	{
+		return false;
+	}
+	else if(!isInPixelDiamond(B, P) && isInPixelDiamond(A, P)){
+		return true;
+	}
+	else{
+		if ((A.x < P.x && P.x < B.x) || (A.x > P.x && P.x > B.x) ||
+			(A.y < P.y && P.y < B.y) || (A.y > P.y && P.y > B.y))
+		{
+			return true;
+		}
+		return false;
+	}
+}
+
 
 /*
  * rasterize_line:
@@ -363,11 +414,109 @@ void Pipeline<p, P, flags>::rasterize_line(
 
 	{ // As a placeholder, draw a point in the middle of the line:
 		//(remove this code once you have a real implementation)
-		Fragment mid;
-		mid.fb_position = (va.fb_position + vb.fb_position) / 2.0f;
-		mid.attributes = va.attributes;
-		mid.derivatives.fill(Vec2(0.0f, 0.0f));
-		emit_fragment(mid);
+		// Fragment mid;
+		// mid.fb_position = (va.fb_position + vb.fb_position) / 2.0f;
+		// mid.attributes = va.attributes;
+		// mid.derivatives.fill(Vec2(0.0f, 0.0f));
+		// emit_fragment(mid);
+
+		float dx = std::abs(va.fb_position.x - vb.fb_position.x), dy = std::abs(va.fb_position.y - vb.fb_position.y);
+		int i, j;
+
+		if (dx >= dy)
+		{
+			/* set index i,j */
+			i = 0, j = 1;
+		}
+		else
+		{
+			j = 0, i = 1;
+		}
+		
+		ClippedVertex va_true = va, vb_true = vb; 
+		if (va.fb_position.data[i] > vb.fb_position.data[i])
+		{
+			/* the starting coordinate should be the smaller value along the longer axis */
+			va_true = vb;
+			vb_true = va;
+		}
+		
+		Vec3 DA(floor(va_true.fb_position.data[0]) + 0.5f, floor(va_true.fb_position.data[1]) + 0.5f, 0.f);
+		
+		if (vb_true.fb_position.data[0] <= DA.data[0]+0.5f && vb_true.fb_position.data[1] <= DA.data[1]+0.5f)
+		{
+			if (isInPixelDiamond(vb.fb_position, DA))
+			{
+				return;		
+			}
+			else{
+				if (paintPixel(va_true.fb_position, vb_true.fb_position, DA))
+				{
+					Fragment frag;
+					frag.fb_position.data[0] = DA.data[0];
+					frag.fb_position.data[1] = DA.data[1];
+					frag.fb_position.data[2] = va_true.fb_position.data[2];
+					frag.attributes = va.attributes;
+					frag.derivatives.fill(Vec2(0.0f, 0.0f));
+					emit_fragment(frag);
+				}
+				return;
+			}
+		}		
+
+		int lower_bound = (int)std::floor(va_true.fb_position.data[i]),
+			upper_bound = (int)std::floor(vb_true.fb_position.data[i]);
+		
+		float ratio_w = 0, v = 0;
+		Fragment frag;
+
+		for (size_t u = lower_bound; u <= upper_bound; u++)
+		{
+			 // deal with start and end point 
+			if (u == lower_bound)
+			{
+				Vec3 edge_p;
+				edge_p.data[i] = u + 1.f;
+				ratio_w = ((float)u + 1.f - va_true.fb_position.data[i]) / (vb_true.fb_position.data[i] - va_true.fb_position.data[i]);
+				edge_p.data[j] = ratio_w * (vb_true.fb_position.data[j] - va_true.fb_position.data[j]) + va_true.fb_position.data[j];
+
+				if (isInPixelDiamond(vb.fb_position, DA))
+				{
+					continue;		
+				}
+				else if (!paintPixel(va_true.fb_position, edge_p, DA))
+				{
+					continue;
+				}		
+			}
+
+			if (u == upper_bound)
+			{
+				Vec3 edge_p;
+				edge_p.data[i] = (float)upper_bound;
+				ratio_w = ((float)upper_bound - va_true.fb_position.data[i]) / (vb_true.fb_position.data[i] - va_true.fb_position.data[i]);
+				edge_p.data[j] = ratio_w * (vb_true.fb_position.data[j] - va_true.fb_position.data[j]) + va_true.fb_position.data[j];
+				if (isInPixelDiamond(vb.fb_position, DA))
+				{
+					continue;		
+				}
+				else if (!paintPixel(va_true.fb_position, edge_p, DA))
+				{
+					continue;
+				}		
+			}
+					
+			// general case
+			ratio_w = ((float)u + 0.5f - va_true.fb_position.data[i]) / (vb_true.fb_position.data[i] - va_true.fb_position.data[i]);
+			v = ratio_w * (vb_true.fb_position.data[j] - va_true.fb_position.data[j]) + va_true.fb_position.data[j];
+
+			frag.fb_position.data[i] = u + 0.5f;
+			frag.fb_position.data[j] = std::floor(v) + 0.5f;
+			frag.fb_position.data[2] = ratio_w * (vb_true.fb_position.data[2] - va_true.fb_position.data[2]) + va_true.fb_position.data[2];
+			frag.attributes = va.attributes;
+			frag.derivatives.fill(Vec2(0.0f, 0.0f));
+			emit_fragment(frag);
+		}	
 	}
 
 }
@@ -421,11 +570,129 @@ void Pipeline<p, P, flags>::rasterize_triangle(
 		// A1T3: flat triangles
 		// TODO: rasterize triangle (see block comment above this function).
 
+		std::vector<ClippedVertex> v = {va, vb, vc};
+		sortTrianglePoint(v);
+
+		std::vector<std::vector<int>> edges = std::vector<std::vector<int>>(3, std::vector<int>(3));
+		labelEdge(edges, v);
+
+		std::vector<std::vector<float>> edgeCoef = std::vector<std::vector<float>>(3, std::vector<float>(3));
+		setLineCoef(edgeCoef[0], v[0].fb_position, v[1].fb_position);
+		setLineCoef(edgeCoef[1], v[0].fb_position, v[2].fb_position);
+		setLineCoef(edgeCoef[2], v[1].fb_position, v[2].fb_position);
+
+
+		float lower_bound, upper_bound, tmp;
+		float j = std::floor(v[0].fb_position.y) + 0.5f, i = 0.f;
+		std::vector<float> coorWeight(3, 0);
+
+		Fragment frag;
+		ClippedVertex tmpVec3;
+		//main emit func
+		while (j <= std::ceil(v[2].fb_position.y) + 0.5f)
+		{
+			//out of triangle
+			if (j < v[0].fb_position.y)
+			{
+				j++;	//move to upper col
+				continue;
+			}
+			if (j > v[2].fb_position.y)
+			{
+				break;	//exit while loop
+			}
+			
+			//special cases: at the end pt
+			if (j == v[0].fb_position.y) //bottom point
+			{
+				j++;	//move to upper col
+				continue;
+			}
+			if (j == v[2].fb_position.y && v[2].fb_position.y != v[1].fb_position.y)
+			{
+				break;
+			}
+			else if (j == v[2].fb_position.y && v[2].fb_position.y == v[1].fb_position.y) //on top line
+			{
+				lower_bound = std::floor(v[1].fb_position.x);
+				upper_bound = v[2].fb_position.x;
+				i = lower_bound +0.5f;
+				while (i < upper_bound )
+				{
+					if (i >= v[1].fb_position.x)
+					{
+						tmpVec3.fb_position.x = i, tmpVec3.fb_position.y = j;
+						getBaryCoor(coorWeight, tmpVec3, v);
+
+						frag.fb_position.x = i, frag.fb_position.y = j;
+						frag.fb_position.z = coorWeight[0]*v[0].fb_position.z + coorWeight[1]*v[1].fb_position.z
+											+ coorWeight[2]*v[2].fb_position.z;
+						frag.attributes = va.attributes;
+						//in flat case frag.derivative is always 0
+						emit_fragment(frag);
+					}
+					i++;
+				}
+				break;
+			}
+			
+			//general case
+			if (j <= v[1].fb_position.y) //check edge v[0]v[1] and v[0]v[2]
+			{
+				if (edgeCoef[0][0] == 0 || edgeCoef[1][0] == 0) //should never happen
+				{
+					std::cout << "	error: divided by 0!!!!! \n";
+					break;
+				}
+				
+				lower_bound = -( j*edgeCoef[0][1] + edgeCoef[0][2]) / edgeCoef[0][0];
+				upper_bound = -( j*edgeCoef[1][1] + edgeCoef[1][2]) / edgeCoef[1][0];
+			}
+			else	//check edge v[1]v[2] and v[0]v[2]
+			{
+				if (edgeCoef[2][0] == 0 || edgeCoef[1][0] == 0) //should never happen
+				{
+					std::cout << "	error: divided by 0!!!!! \n";
+					break;
+				}
+				lower_bound = -( j*edgeCoef[2][1] + edgeCoef[2][2]) / edgeCoef[2][0];
+				upper_bound = -( j*edgeCoef[1][1] + edgeCoef[1][2]) / edgeCoef[1][0];
+			}
+
+			if (lower_bound > upper_bound)
+			{
+				tmp = lower_bound;
+				lower_bound = upper_bound;
+				upper_bound = tmp;
+			}
+				
+			i = std::floor(lower_bound) +0.5f;
+			while (i < upper_bound )
+			{
+				if (i >= lower_bound)
+				{
+					tmpVec3.fb_position.x = i, tmpVec3.fb_position.y = j;
+					getBaryCoor(coorWeight, tmpVec3, v);
+
+					frag.fb_position.x = i, frag.fb_position.y = j;
+					frag.fb_position.z = coorWeight[0]*v[0].fb_position.z + coorWeight[1]*v[1].fb_position.z
+										+ coorWeight[2]*v[2].fb_position.z;
+					frag.attributes = va.attributes;
+					//in flat case frag.derivative is always 0
+					emit_fragment(frag);
+				}
+				i++;
+			}
+
+			j++;	
+		}
+		
+
 		// As a placeholder, here's code that draws some lines:
 		//(remove this and replace it with a real solution)
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(va, vb, emit_fragment);
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vb, vc, emit_fragment);
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vc, va, emit_fragment);
+		// Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(va, vb, emit_fragment);
+		// Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vb, vc, emit_fragment);
+		// Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vc, va, emit_fragment);
 	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Smooth) {
 		// A1T5: screen-space smooth triangles
 		// TODO: rasterize triangle (see block comment above this function).
@@ -441,6 +708,134 @@ void Pipeline<p, P, flags>::rasterize_triangle(
 		//(remove this and replace it with a real solution)
 		Pipeline<PrimitiveType::Lines, P, (flags & ~PipelineMask_Interp) | Pipeline_Interp_Smooth>::rasterize_triangle(va, vb, vc, emit_fragment);
 	}
+}
+
+//bottom - left rule, only consider y, x
+template<PrimitiveType p, class P, uint32_t flags>
+int Pipeline<p, P, flags>::cmp_tri(ClippedVertex a, ClippedVertex b){
+	if (a.fb_position.y == b.fb_position.y)
+	{
+		return a.fb_position.x < b.fb_position.x;
+	}
+	return a.fb_position.y < b.fb_position.y;
+}
+
+template<PrimitiveType p, class P, uint32_t flags>
+void Pipeline<p, P, flags>::sortTrianglePoint(std::vector<ClippedVertex> &v){
+	if(v.size() != 3)
+	{
+		std::cout << "  sortTrianglePoint error: not a valid triangle!!!!! \n" << std::endl;
+		return;
+	}
+	std::sort(v.begin(), v.begin()+3, cmp_tri);
+	//std::cout << v[0].fb_position.x << ", " << v[0].fb_position.y << ", " << v[0].fb_position.z << " ; " 
+	//	<< v[1].fb_position.x << ", " << v[1].fb_position.y << ", " << v[1].fb_position.z << std::endl;
+}
+
+//1: is top-left edges; 0: others
+template<PrimitiveType p, class P, uint32_t flags>
+void Pipeline<p, P, flags>:: labelEdge(std::vector<std::vector<int>> edges, std::vector<ClippedVertex> &v){
+	if (edges.size() != 3 || edges[0].size() != 3)
+	{
+		edges.resize(3);
+		edges[0].resize(3);
+		edges[1].resize(3);
+		edges[2].resize(3);
+	}
+	
+	if (v[1].fb_position.y == v[2].fb_position.y) // top edge
+	{
+		edges[1][2] = 1;
+		edges[2][1] = 1;
+	}
+	else if (cross(v[1].fb_position-v[0].fb_position, v[2].fb_position-v[0].fb_position).z < 0) //left
+	{
+		edges[1][2] = 1;
+		edges[2][1] = 1;
+	}
+	else
+	{
+		edges[1][2] = 0;
+		edges[2][1] = 0;
+	}
+
+	if (v[1].fb_position.x > v[0].fb_position.x)
+	{
+		edges[0][2] = 1;
+		edges[2][0] = 1;
+	}
+	else if (v[1].fb_position.x == v[0].fb_position.x && v[2].fb_position.x < v[1].fb_position.x)
+	{
+		edges[0][2] = 1;
+		edges[2][0] = 1;
+	}
+	else
+	{
+		edges[0][2] = 0;
+		edges[2][0] = 0;
+	}
+	
+	if(v[0].fb_position.y != v[1].fb_position.y && v[1].fb_position.x < v[0].fb_position.x)
+	{
+		edges[0][1] = 1;
+		edges[1][0] = 1;
+	}
+	else
+	{
+		edges[0][1] = 0;
+		edges[1][0] = 0;
+	}
+
+	edges[0][0] = edges[0][1] && edges[0][2];
+	edges[1][1] = edges[1][1] && edges[1][2];
+	edges[2][2] = edges[0][2] && edges[1][2];
+}
+
+template<PrimitiveType p, class P, uint32_t flags>
+void Pipeline<p, P, flags>::getBaryCoor(std::vector<float> &weight , ClippedVertex &p, std::vector<ClippedVertex> &v){
+	if (weight.size() != 3)
+	{
+		weight.resize(3);
+	}
+	float crossArea =  v[0].fb_position.x *(v[1].fb_position.y - v[2].fb_position.y) +
+					   v[1].fb_position.x *(v[2].fb_position.y - v[0].fb_position.y) +
+					   v[2].fb_position.x *(v[0].fb_position.y - v[1].fb_position.y);
+
+	float pArea[3];
+
+	pArea[0] = p.fb_position.x *(v[1].fb_position.y - v[2].fb_position.y) +
+			   v[1].fb_position.x *(v[2].fb_position.y - p.fb_position.y) +
+			   v[2].fb_position.x *(p.fb_position.y - v[1].fb_position.y);
+
+	pArea[1] = v[0].fb_position.x *(p.fb_position.y - v[2].fb_position.y) +
+				p.fb_position.x *(v[2].fb_position.y - v[0].fb_position.y) +
+				v[2].fb_position.x *(v[0].fb_position.y - p.fb_position.y);
+
+	pArea[2] = v[0].fb_position.x *(v[1].fb_position.y - p.fb_position.y) +
+				v[1].fb_position.x *(p.fb_position.y - v[0].fb_position.y) +
+				p.fb_position.x *(v[0].fb_position.y - v[1].fb_position.y);
+
+	for (size_t i = 0; i < 3; i++)
+	{
+		weight[i] = std::abs(pArea[i] / crossArea);
+	}
+}
+
+bool isInLine(Vec3 p, Vec3 a, Vec3 b){
+	if( p.x >= std::min(a.x, b.x) && p.x <= std::max(a.x, b.x) &&
+		p.y >= std::min(a.y, b.y) && p.y <= std::max(a.y, b.y)){
+			return true;
+		}
+	return false;
+}
+
+void setLineCoef(std::vector<float> &coef, Vec3 a, Vec3 b){
+	if(coef.size() != 3){
+		coef.resize(3);
+	}
+	coef[0] = b.y - a.y;
+	coef[1] = a.x - b.x;
+	coef[2] = b.x*a.y - a.x*b.y;
 }
 
 //-------------------------------------------------------------------------
