@@ -470,7 +470,7 @@ void Pipeline<p, P, flags>::rasterize_line(
 		float ratio_w = 0, v = 0;
 		Fragment frag;
 
-		for (size_t u = lower_bound; u <= upper_bound; u++)
+		for (int u = lower_bound; u <= upper_bound; u++)
 		{
 			 // deal with start and end point 
 			if (u == lower_bound)
