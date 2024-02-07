@@ -186,3 +186,23 @@ Test test_a1_task2_simple_vertical("a1.task2.simple.vertical", []() {
 });
 
 
+// Test test_a1_task2_diamond_not_exit("a1.task2.diamond.not.exit", []() {
+// 	check_line_covers(
+// 		"line cross diamond (1,1) but no exit",
+// 		{ Vec2(1.125f, 1.25f), Vec2(1.5f, 1.5f) },
+// 		{"...",
+// 		 "...",
+// 		 "..."}
+// 	);
+// });
+
+// Test test_a1_task2_diamond_exit("a1.task2.diamond.exit", []() {
+// 	check_line_covers(
+// 		"line from (1.25, 1.25) to (1.75, 1.0)",
+// 		{ Vec2(1.25f, 1.25f), Vec2(1.75f, 1.f) },
+// 		{"...",
+// 		 ".#.",
+// 		 "..."}
+// 	);
+// });
+
