@@ -92,13 +92,20 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 	int sample_size = (int)framebuffer.sample_pattern.centers_and_weights.size();
 	//sample_weight_depth += framebuffer.depth_at(x, y, i) / sample_size;
 	//info("\n sample size: %d", sample_size);
+	std::vector<float> x_fraction(clipped_vertices.size(), 0);
+	std::vector<float> y_fraction(clipped_vertices.size(), 0);
+	for(int i = 0; i < clipped_vertices.size(); i++)
+	{
+		x_fraction[i] = clipped_vertices[i].fb_position.x - (float)std::floor(clipped_vertices[i].fb_position.x);
+		y_fraction[i] = clipped_vertices[i].fb_position.y - (float)std::floor(clipped_vertices[i].fb_position.y);
+	}
 
 	for (int s = 0; s < sample_size; s++)
 	{
 		for (uint32_t i = 0; i < clipped_vertices.size(); i++) {
 			
-			clipped_vertices[i].fb_position.x += framebuffer.sample_pattern.centers_and_weights.at(s).x - .5f;
-			clipped_vertices[i].fb_position.y += framebuffer.sample_pattern.centers_and_weights.at(s).y - .5f;
+			clipped_vertices[i].fb_position.x += framebuffer.sample_pattern.centers_and_weights.at(s).x - x_fraction[i];
+			clipped_vertices[i].fb_position.y += framebuffer.sample_pattern.centers_and_weights.at(s).y - y_fraction[i];
 			// if (count < 32)
 			// {
 			// 	info("\n fb_position.x: %f, fb_position.y: %f", clipped_vertices[i].fb_position.x
@@ -221,8 +228,8 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 		}
 
 		for (uint32_t i = 0; i < clipped_vertices.size(); i++) {
-				clipped_vertices[i].fb_position.x -= framebuffer.sample_pattern.centers_and_weights.at(s).x - 0.5f;
-				clipped_vertices[i].fb_position.y -= framebuffer.sample_pattern.centers_and_weights.at(s).y - 0.5f;
+				clipped_vertices[i].fb_position.x -= framebuffer.sample_pattern.centers_and_weights.at(s).x - x_fraction[i];
+				clipped_vertices[i].fb_position.y -= framebuffer.sample_pattern.centers_and_weights.at(s).y - y_fraction[i];
 		}
 	}
 }
