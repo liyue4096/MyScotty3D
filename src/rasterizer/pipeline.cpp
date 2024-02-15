@@ -94,7 +94,7 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 	//info("\n sample size: %d", sample_size);
 	std::vector<float> x_fraction(clipped_vertices.size(), 0);
 	std::vector<float> y_fraction(clipped_vertices.size(), 0);
-	for(int i = 0; i < clipped_vertices.size(); i++)
+	for(int i = 0; i < (int)clipped_vertices.size(); i++)
 	{
 		x_fraction[i] = clipped_vertices[i].fb_position.x - (float)std::floor(clipped_vertices[i].fb_position.x);
 		y_fraction[i] = clipped_vertices[i].fb_position.y - (float)std::floor(clipped_vertices[i].fb_position.y);
