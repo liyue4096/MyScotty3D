@@ -51,11 +51,12 @@ std::vector<SamplePattern> const& SamplePattern::all_patterns() {
 			for (int j = 0; j < 2; j++)
 			{
 				float a, b;
-				a = (float)i, b = (float)i*j;
-				centers_and_weights.emplace_back((0.5f + a / 8.f, 0.5f + b / 8.f, weight));
-				centers_and_weights.emplace_back((0.5f - b / 8.f, 0.5f + a / 8.f, weight));
-				centers_and_weights.emplace_back((0.5f - a / 8.f, 0.5f - b / 8.f, weight));
-				centers_and_weights.emplace_back((0.5f + b / 8.f, 0.5f - a / 8.f, weight));
+				a = (float)i / 8.f, b = (float)i*j;
+				
+				centers_and_weights.emplace_back(((0.5f + a), (0.5f + b), weight));
+				centers_and_weights.emplace_back(((0.5f - b), (0.5f + a), weight));
+				centers_and_weights.emplace_back(((0.5f - a), (0.5f - b), weight));
+				centers_and_weights.emplace_back(((0.5f + b), (0.5f - a), weight));
 			}
 		}		 
 		return SamplePattern(id, name, centers_and_weights);
