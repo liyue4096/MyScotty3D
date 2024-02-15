@@ -19,6 +19,7 @@ Test test_a1_task7_index("a1.task7.index", []() {
 		Vec3(0.6f, 0.6f, 0.1f),
 		Vec3(0.7f, 0.7f, 0.3f)
 	});
+	//info("\n pattern 1234, center_and_weight size: %d\n", pattern.centers_and_weights.size());
 
 	Framebuffer fb(14, 22, pattern);
 
@@ -37,16 +38,20 @@ Test test_a1_task7_index("a1.task7.index", []() {
 				uint32_t i = fb.index(x,y,s);
 				if (i >= fb.colors.size()) {
 					throw Test::error("fb.index(" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(s) + ") is out-of-range.");
-				}
+				}				
 				fb.color_at(x,y,s) = Spectrum(float(x),float(y),float(s));
+				//if(x == 0 && y == 0)
+				//	info("fb.color_at(x,y,s): %f, %f, %f", fb.color_at(x,y,s).r, fb.color_at(x,y,s).g, fb.color_at(x,y,s).b);
 			}
 		}
 	}
 
+	//info("fb.color_at(000): %f, %f, %f", fb.color_at(0,0,0).r, fb.color_at(0,0,0).g, fb.color_at(0,0,0).b);
+
 	//read back values:
 	for (uint32_t y = 0; y < fb.height; ++y) {
 		for (uint32_t x = 0; x < fb.width; ++x) {
-			for (uint32_t s = 0; s < pattern.centers_and_weights.size(); ++s) {
+			for (uint32_t s = 0; s < pattern.centers_and_weights.size(); ++s) {	
 				if (Test::differs(fb.color_at(x,y,s), Spectrum(float(x),float(y),float(s)))) {
 					throw Test::error("FB value at " + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(s) + " got clobbered by " + to_string(fb.color_at(x,y,s)) + ".");
 				}

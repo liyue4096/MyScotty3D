@@ -27,12 +27,35 @@ std::vector<SamplePattern> const& SamplePattern::all_patterns() {
 		// scenarios your SamplePattern would do well in vs do horribly in. The more complicated
 		// your SamplePattern is + more detailed your writeup is (such as with images or models for
 		// comparisons of these scenarios), the more extra credit can be awarded (no limit).
-
+		// let * denote the sample point in a pixel
+		// ______________
+		//	*     *     *
+		//	 *    *    *
+		//	  *   *   *
+		//	   *  *  *
+		//	****     ****
+		//	   *  *  *
+		//	  *   *   *
+		//	 *    *    *
+		//	*     *     *
+		//---------------
 		// Please don't change the name or id
 		const uint32_t id = 0;
 		const std::string name = "Custom Sample Pattern";
 		// This will cause it to segfault when used, so be sure to change it!
 		std::vector<Vec3> centers_and_weights = {};
+		centers_and_weights.reserve(32);
+		float weight = 1.0f / centers_and_weights.size();
+		for (int i = 1; i < 5; i++)
+		{
+			for (int j = 0; j < 2; j++)
+			{
+				centers_and_weights.emplace_back((0.5f + i / 8.f, 0.5f + (i * j) / 8.f, weight));
+				centers_and_weights.emplace_back((0.5f - (i * j) / 8.f, 0.5f + i / 8.f, weight));
+				centers_and_weights.emplace_back((0.5f - i / 8.f, 0.5f - (i * j) / 8.f, weight));
+				centers_and_weights.emplace_back((0.5f + (i * j) / 8.f, 0.5f - i / 8.f, weight));
+			}
+		}		 
 		return SamplePattern(id, name, centers_and_weights);
 	};
 	static std::vector<SamplePattern> all = [&]() {

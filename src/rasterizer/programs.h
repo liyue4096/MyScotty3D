@@ -7,6 +7,7 @@
 
 #include "../lib/mathlib.h"
 #include "../scene/texture.h"
+#include <iostream>
 
 namespace Programs {
 
@@ -120,10 +121,27 @@ struct Lambertian {
 
 		// Read section 3.8.11 of glspec33.core.pdf to understand how to compute this level
 		//  --> 'lod' is \lambda_base from equation (3.17)
-		// reading onward, you will discover that \rho can be computed in a number of ways
+		// reading onward, you will discover that \rho can be computed in a number of ways	
 		//  it is up to you to select one that makes sense in this context
+		//float ux = std::abs(fdx_texcoord.data[0]);// * wh.x;
+		//float vx = std::abs(fdx_texcoord.data[1]);// * wh.x;
+		//float uy = std::abs(fdy_texcoord.data[0]);// * wh.y;
+		//float vy = std::abs(fdy_texcoord.data[1]);// * wh.y;
 
-		float lod = 0.0f; //<-- replace this line
+		//float pho = std::max(std::sqrt(ux*ux + vx*vx), std::sqrt(uy*uy + vy*vy));
+		float pho = std::max((float)sqrt(pow(wh.x*fdx_texcoord.x, 2) + pow(wh.x*fdx_texcoord.y, 2)),
+							 (float)sqrt(pow(wh.y*fdy_texcoord.x, 2) + pow(wh.y*fdy_texcoord.y, 2)));
+		//float pho = std::max(std::max(ux, uy), std::max(vx, vy));
+			//+ std::max(ux, uy) + std::max(vx, vy)) / 2.f;
+		//std::cout << "\n pho = " << pho << ", ux = " <<  fdx_texcoord.data[0] << "*" << wh.x <<
+		//	"; vy = "<< fdy_texcoord.data[1] << "*" << wh.y << std::endl;
+		//if (pho < 0.5f)
+		//{
+			//pho = .5f;
+		//}
+		//float lod = log2f(pho); //<-- replace this line
+		float lod = (pho == 0)? -1.f: log2(pho);
+		//std::cout << "pho = " << pho << "; lod = " << lod << "\n";
 		//-----
 
 		Vec3 normal = fa_normal.unit();
@@ -137,6 +155,7 @@ struct Lambertian {
 			parameters.ground_energy;
 
 		color = parameters.image->evaluate(fa_texcoord, lod) * light;
+		//std::cout << "color.b = " <<  color.b << ", light = " << light << "\n";
 		opacity = parameters.opacity;
 	}
 };
