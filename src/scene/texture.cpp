@@ -163,7 +163,7 @@ void generate_mipmap(HDR_Image const &base, std::vector< HDR_Image > *levels_) {
 		}
 		return; 
 		//Be aware that the alignment of the samples in dst and src will be different depending on whether the image is even or odd.
-		uint32_t pixel_size = dst.w * dst.h, offset = 0, ref;
+		uint32_t pixel_size = dst.w * dst.h, ref;
 		std::vector<Spectrum> pixels(pixel_size, Spectrum());
 		Spectrum local_spec;
 		
@@ -173,7 +173,7 @@ void generate_mipmap(HDR_Image const &base, std::vector< HDR_Image > *levels_) {
 			{
 				for (int j = 0; j < (int)dst.w; j++)
 				{
-					offset = 2 * (dst.w % 2) * i;
+					//offset = 2 * (dst.w % 2) * i;
 					ref = 2 * src.w * i + 2 * j;
 					local_spec = (src.at(ref) + src.at(ref+1) + src.at(ref+src.w) + src.at(ref+src.w+1)) / 4.f;	
 					pixels[i*dst.w + j] = local_spec;			
@@ -182,7 +182,7 @@ void generate_mipmap(HDR_Image const &base, std::vector< HDR_Image > *levels_) {
 		}
 		else if ((int)src.w == 1 || (int)src.h == 1)
 		{
-			for (size_t j = 0; j < std::max((int)src.w, (int)src.h); j++)
+			for (int j = 0; j < std::max((int)src.w, (int)src.h); j++)
 			{
 				ref = 2 * (uint32_t)j;
 				local_spec = (src.at(ref) + src.at(ref+1)) / 2.f;
