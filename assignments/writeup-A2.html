@@ -1,6 +1,6 @@
 **Assignment 2 Report**
 
-AndrewID: XXXX
+AndrewID: yueli3
 
 (##) About this template
 
@@ -21,6 +21,11 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+**1) case 1: e->on_boundary() is true, then return nullopt;**
+
+**2) case 2: if e is not a boundary edge, h->face and h->twin->face should be co-plane. If not, return nullopt;**
+
+**3) case 3: general valid operation case.**
 
 Your completion will be graded based on the reference `test.a2.l1.cpp` file and 
 checking that the operation works in the GUI.
@@ -32,6 +37,9 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+**1) case1: e->on_boundary() is ture, i.e. edge is a boundary edge;**
+
+**2) case2: e->on_boundary() is false, i.e. edge is not a boundary edge;**
 
 Your completion will be graded based on the reference `test.a2.l2.cpp` file and 
 checking that the operation works in the GUI.
@@ -43,6 +51,13 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+**1) case1: the mesh is a simple triangle, return nullopt;**
+
+**2) case2: if edge e is the only edge separating two faces, collapsed edge operation will destory connectivity;**
+
+**3) case3: edge is a boundary edge;**
+
+**4) case4: edge isn't a boundary edge;**
 
 Your completion will be graded based on the reference `test.a2.l3.cpp` file and 
 checking that the operation works in the GUI.
@@ -54,6 +69,9 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+**1) case1: the target face is a boundary face, return nullopt;**
+
+**2) case2: the face is not a boundary face;**
 
 Your completion will be graded based on the reference `test.a2.l4.cpp` file and 
 checking that the operation works in the GUI.
@@ -138,6 +156,10 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+
+**1) case1: the target face is a boundary face, return nullopt;**
+
+**2) case2: the face is not a boundary face;**
 
 Your completion will be graded based on the reference `test.a2.lx4.cpp` file and 
 checking that the operation works in the GUI.

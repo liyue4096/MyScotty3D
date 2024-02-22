@@ -389,7 +389,8 @@ public:
 
 	//a multi-line description of the mesh, suitable for debug output (works on invalid meshes)
 	std::string describe() const;
-
+	//a multi-line description of the mesh, suitable for R plot output (works on invalid meshes)
+	std::string my_describe_R() const;
 	//--- validation ---
 
 	/// Check if half-edge mesh is valid:
