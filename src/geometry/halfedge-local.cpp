@@ -713,7 +713,7 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::dissolve_vertex(VertexRef v
 			}		
 		};
 
-		for (size_t i = 0; i < degree; i++)
+		for (int i = 0; i < degree; i++)
 		{
 			if (i < degree-1)
 			{
