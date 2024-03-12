@@ -81,19 +81,34 @@ void Halfedge_Mesh::linear_subdivide()
 	// For every vertex, assign its current position to vertex_positions[v]:
 
 	//(TODO)
+	for (auto v = vertices.begin(); v != vertices.end(); v++)
+	{
+		vertex_positions.emplace(v, v->position);
+	}
 
 	// For every edge, assign the midpoint of its adjacent vertices to edge_vertex_positions[e]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Edge)
 
 	//(TODO)
+	for (auto e = edges.begin(); e != edges.end(); e++)
+	{
+		edge_vertex_positions.emplace(e, e->center());
+	}
 
 	// For every *non-boundary* face, assign the centroid (i.e., arithmetic mean) to face_vertex_positions[f]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Face)
 
 	//(TODO)
-
+	for (auto f = faces.begin(); f != faces.end(); f++)
+	{
+		if (!f->boundary)
+		{
+			face_vertex_positions.emplace(f, f->center());
+		}
+	}
 	// use the helper function to actually perform the subdivision:
 	catmark_subdivide_helper(vertex_positions, edge_vertex_positions, face_vertex_positions);
+	// std::cout << my_describe_R();
 }
 
 /*
@@ -109,8 +124,7 @@ void Halfedge_Mesh::catmark_subdivide()
 	std::unordered_map<VertexCRef, Vec3> vertex_positions;
 	std::unordered_map<EdgeCRef, Vec3> edge_vertex_positions;
 	std::unordered_map<FaceCRef, Vec3> face_vertex_positions;
-
-	// A2G3: Catmull-Clark Subdivision
+	//  A2G3: Catmull-Clark Subdivision
 
 	// This routine should end up looking a lot like linear_subdivide
 	// above, with the exception that the positions are a bit trickier
@@ -120,13 +134,72 @@ void Halfedge_Mesh::catmark_subdivide()
 	//  https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
 
 	// Faces
+	for (auto f = faces.begin(); f != faces.end(); f++)
+	{
+		if (f->boundary)
+			continue;
+		face_vertex_positions.emplace(f, f->center());
+	}
 
 	// Edges
+	for (auto e = edges.begin(); e != edges.end(); e++)
+	{
+		if (e->on_boundary())
+		{
+			edge_vertex_positions.emplace(e, e->center());
+			continue;
+		}
+		FaceRef f1 = e->halfedge->face;
+		FaceRef f2 = e->halfedge->twin->face;
+		Vec3 p = (f1->center() + f2->center() + e->center() * 2) / 4.f;
+		edge_vertex_positions.emplace(e, p);
+	}
 
 	// Vertices
+	HalfedgeRef h;
+	Vec3 q = Vec3{0.f, 0.f, 0.f}, r = Vec3{0.f, 0.f, 0.f}, s = Vec3{0.f, 0.f, 0.f};
+	float n;
+	for (VertexCRef v = vertices.begin(); v != vertices.end(); v++)
+	{
+		n = (float)v->degree();
+		q = Vec3{0.f, 0.f, 0.f}, r = Vec3{0.f, 0.f, 0.f}, s = Vec3{0.f, 0.f, 0.f};
+		if (!v->on_boundary())
+		{
+			h = v->halfedge;
+			do
+			{
+				// q += face_vertex_positions[h->face] / n;
+				// r += edge_vertex_positions[h->edge] / n;
+				q += h->face->center() / (float)n;
+				r += h->edge->center() / (float)n;
+				h = h->twin->next;
+			} while (h != v->halfedge);
+
+			s = v->position;
+
+			vertex_positions.emplace(v, (q + 2 * r + (n - 3) * s) / n);
+		}
+		else
+		{
+			s = Vec3{0.f, 0.f, 0.f};
+			h = v->halfedge;
+			do
+			{
+				if (h->edge->on_boundary())
+				{
+					s += h->twin->vertex->position / 8.f;
+				}
+				h = h->twin->next;
+			} while (h != v->halfedge);
+			s += v->position * 0.75;
+
+			vertex_positions.emplace(v, s);
+		}
+	}
 
 	// Now, use the provided helper function to actually perform the subdivision:
 	catmark_subdivide_helper(vertex_positions, edge_vertex_positions, face_vertex_positions);
+	// std::cout << my_describe_R();
 }
 
 /*
@@ -211,29 +284,116 @@ void Halfedge_Mesh::isotropic_remesh(Isotropic_Remesh_Parameters const &params)
 
 	// A2Go2: Isotropic Remeshing
 	//  Optional! Only one of {A2Go1, A2Go2, A2Go3} is required!
+	// std::cout << my_describe_R();
+	//  Compute the mean edge length. This will be the "target length".
+	float mean_e_length = 0.f;
+	int e_size = 0;
+	for (auto e = edges.begin(); e != edges.end(); e++)
+	{
+		mean_e_length += e->length();
+		e_size++;
+	}
+	mean_e_length /= (float)e_size;
+	// std::cout << "mean length: " << mean_e_length << "\n";
+	// std::cout << "params: " << params.outer_iterations << ", " << params.longer_factor << ", " << params.shorter_factor << ", " << params.smoothing_iterations << ", " << params.smoothing_step << "\n";
+	//  Repeat the four main steps for `outer_iterations` iterations:
+	int split_cnt = 0, collapse_cnt = 0, flip_cnt = 0;
+	for (int i = params.outer_iterations; i > 0; i--)
+	{
+		// -> Split edges much longer than the target length.
+		//     ("much longer" means > target length * params.longer_factor)
+		auto edge_end_iter = edges.end();
+		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		{
+			// if (e == edges.begin())
+			// {
+			// 	std::cout << "\n e_length:" << e->length();
+			// }
 
-	// Compute the mean edge length. This will be the "target length".
+			if (e->length() > mean_e_length * params.longer_factor)
+			{
+				split_edge(e);
+				edge_end_iter = edges.end();
+				split_cnt++;
+				std::cout << "split_cnt: " << split_cnt << "\n";
+			}
+		}
 
-	// Repeat the four main steps for `outer_iterations` iterations:
+		// -> Collapse edges much shorter than the target length.
+		//     ("much shorter" means < target length * params.shorter_factor)
+		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		{
+			if (e->length() < mean_e_length * params.shorter_factor)
+			{
+				collapse_edge(e);
+				edge_end_iter = edges.end();
+				collapse_cnt++;
+				std::cout << "collapse_cnt: " << collapse_cnt << "\n";
+			}
+		}
 
-	// -> Split edges much longer than the target length.
-	//     ("much longer" means > target length * params.longer_factor)
+		// -> Flip each edge if it improves vertex degree.
+		float dotproduct;
+		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		{
+			// check whether flip operation is valid
+			if (e->on_boundary())
+				continue;
+			// the edge can be filped only two faces are coplane(except triangle case)
+			dotproduct = dot(e->halfedge->face->normal(), e->halfedge->twin->face->normal());
+			if (std::abs(dotproduct - 1) > 0.001f && e->halfedge->face->degree() != 3 && e->halfedge->twin->face->degree() != 3)
+			{
+				// std::cout << e->halfedge->face->normal() << "; " << e->halfedge->twin->face->normal() << "\n";
+				continue;
+			}
+			int ori_local_degree = 0, after_local_degree = 0, deg[4] = {0};
+			deg[0] = e->halfedge->vertex->degree();
+			deg[1] = e->halfedge->twin->vertex->degree();
+			deg[2] = e->halfedge->next->vertex->degree();
+			deg[3] = e->halfedge->twin->next->vertex->degree();
+			ori_local_degree = abs(deg[0] - 6) + abs(deg[1] - 6) + abs(deg[2] - 6) + abs(deg[3] - 6);
+			after_local_degree = abs(deg[0] - 1 - 6) + abs(deg[1] - 1 - 6) + abs(deg[2] + 1 - 6) + abs(deg[3] + 1 - 6);
+			if (after_local_degree < ori_local_degree)
+			{
+				flip_edge(e);
+				flip_cnt++;
+				std::cout << "flip: " << flip_cnt << "\n";
+			}
+		}
 
-	// -> Collapse edges much shorter than the target length.
-	//     ("much shorter" means < target length * params.shorter_factor)
+		// -> Finally, apply some tangential smoothing to the vertex positions.
+		//     This means move every vertex in the plane of its normal,
+		//     toward the centroid of its neighbors, by params.smoothing_step of
+		//     the total distance (so, smoothing_step of 1 would move all the way,
+		//     smoothing_step of 0 would not move).
+		// -> Repeat the tangential smoothing part params.smoothing_iterations times.
+		for (int j = params.smoothing_iterations; j > 0; j--)
+		{
+			std::vector<Vec3> centoids;
+			Vec3 direction_v; // update direction v = c - p
+			Vec3 v_normal(0.f, 0.f, 0.f);
 
-	// -> Flip each edge if it improves vertex degree.
+			for (auto v = vertices.begin(); v != vertices.end(); v++)
+			{
+				centoids.emplace_back(v->neighborhood_center());
+			}
 
-	// -> Finally, apply some tangential smoothing to the vertex positions.
-	//     This means move every vertex in the plane of its normal,
-	//     toward the centroid of its neighbors, by params.smoothing_step of
-	//     the total distance (so, smoothing_step of 1 would move all the way,
-	//     smoothing_step of 0 would not move).
-	// -> Repeat the tangential smoothing part params.smoothing_iterations times.
-
-	// NOTE: many of the steps in this function will be modifying the element
-	//       lists they are looping over. Take care to avoid use-after-free
-	//       or infinite-loop problems.
+			int index = 0;
+			for (auto v = vertices.begin(); v != vertices.end(); v++)
+			{
+				direction_v = centoids[index] - v->position;
+				// projection modification
+				v_normal = v->normal();
+				direction_v -= dot(v_normal, direction_v) * v_normal;
+				v->position = v->position + params.smoothing_step * direction_v;
+				index++;
+			}
+		}
+	}
+	// std::cout << my_describe_R();
+	//  NOTE: many of the steps in this function will be modifying the element
+	//        lists they are looping over. Take care to avoid use-after-free
+	//        or infinite-loop problems.
 }
 
 struct Edge_Record
