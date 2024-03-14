@@ -288,76 +288,110 @@ void Halfedge_Mesh::isotropic_remesh(Isotropic_Remesh_Parameters const &params)
 	//  Compute the mean edge length. This will be the "target length".
 	float mean_e_length = 0.f;
 	int e_size = 0;
-	for (auto e = edges.begin(); e != edges.end(); e++)
-	{
-		mean_e_length += e->length();
-		e_size++;
-	}
-	mean_e_length /= (float)e_size;
+
 	// std::cout << "mean length: " << mean_e_length << "\n";
 	// std::cout << "params: " << params.outer_iterations << ", " << params.longer_factor << ", " << params.shorter_factor << ", " << params.smoothing_iterations << ", " << params.smoothing_step << "\n";
 	//  Repeat the four main steps for `outer_iterations` iterations:
 	int split_cnt = 0, collapse_cnt = 0, flip_cnt = 0;
-	for (int i = params.outer_iterations; i > 0; i--)
+	for (int i = (int)params.outer_iterations; i > 0; i--)
 	{
+		mean_e_length = 0.f;
+		e_size = 0;
+		for (Halfedge_Mesh::EdgeRef e = edges.begin(); e != edges.end(); e++)
+		{
+			mean_e_length += e->length();
+			e_size++;
+		}
+		// info("sum %f, size: %d", mean_e_length, e_size);
+		mean_e_length /= (float)e_size;
 		// -> Split edges much longer than the target length.
 		//     ("much longer" means > target length * params.longer_factor)
-		auto edge_end_iter = edges.end();
-		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		auto edge_end_iter = --edges.end(), edge_begin_iter = edges.begin(), e_next = edges.begin();
+		// info("begin_id %d, end_id: %d, upper_length: %f, lower_length: %f", edge_begin_iter->id, edge_end_iter->id, mean_e_length * params.longer_factor, mean_e_length * params.shorter_factor);
+		bool end_sign = true;
+		auto e = edges.begin();
+		do
 		{
-			// if (e == edges.begin())
-			// {
-			// 	std::cout << "\n e_length:" << e->length();
-			// }
-
 			if (e->length() > mean_e_length * params.longer_factor)
 			{
 				split_edge(e);
-				edge_end_iter = edges.end();
 				split_cnt++;
-				std::cout << "split_cnt: " << split_cnt << "\n";
+				// std::cout << i << " edge id: " << e->id << " length: " << e->length() << " split_cnt: " << split_cnt << "\n";
+				if (end_sign)
+				{
+					edge_end_iter = --edges.end();
+					end_sign = false;
+				}
 			}
-		}
+			e++;
+		} while (e->id != edge_end_iter->id);
 
 		// -> Collapse edges much shorter than the target length.
 		//     ("much shorter" means < target length * params.shorter_factor)
-		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		float ref_length = mean_e_length * params.shorter_factor;
+		auto tmp_e = edges.begin();
+		std::vector<Halfedge_Mesh::EdgeRef> edges_to_remove;
+		for (auto edge = edges.begin(); e->id != edge_end_iter->id; edge++)
 		{
-			if (e->length() < mean_e_length * params.shorter_factor)
+			if (edge->length() < ref_length)
 			{
-				collapse_edge(e);
-				edge_end_iter = edges.end();
-				collapse_cnt++;
-				std::cout << "collapse_cnt: " << collapse_cnt << "\n";
+				edges_to_remove.emplace_back(edge);
+				// std::cout << edge->id << "\n";
 			}
 		}
+		// info("remove size: %d", edges_to_remove.size());
+		for (auto edge : edges_to_remove)
+		{
+			collapse_cnt++;
+			// std::cout << i << " edge id: " << edge->id << " collapse_cnt: " << collapse_cnt << " halfedge: " << edge->halfedge->id << " length: " << edge->length() << "\n";
+
+			if (!collapse_edge(edge).has_value())
+				break;
+		}
+
+		// e = edges.begin();
+		// do
+		// {
+		// 	if (e->length() < ref_length)
+		// 	{
+		// 		tmp_e = e;
+		// 		e++;
+		// 		collapse_cnt++;
+		// 		// std::cout << i << " edge id: " << tmp_e->id << " length: " << tmp_e->length() << " collapse_cnt: " << collapse_cnt << "\n";
+		// 		collapse_edge(tmp_e);
+		// 		// std::cout << my_describe_R();
+		// 		continue;
+		// 	}
+		// 	e++;
+		// } while (e->id != edge_end_iter->id);
 
 		// -> Flip each edge if it improves vertex degree.
-		float dotproduct;
-		for (auto e = edges.begin(); e != edge_end_iter; e++)
+		// float dotproduct;
+		for (e = edges.begin(); e != edges.end(); e++)
 		{
 			// check whether flip operation is valid
-			if (e->on_boundary())
-				continue;
-			// the edge can be filped only two faces are coplane(except triangle case)
-			dotproduct = dot(e->halfedge->face->normal(), e->halfedge->twin->face->normal());
-			if (std::abs(dotproduct - 1) > 0.001f && e->halfedge->face->degree() != 3 && e->halfedge->twin->face->degree() != 3)
-			{
-				// std::cout << e->halfedge->face->normal() << "; " << e->halfedge->twin->face->normal() << "\n";
-				continue;
-			}
+			// if (e->on_boundary())
+			// 	continue;
+			// // the edge can be filped only two faces are coplane(except triangle case)
+			// dotproduct = dot(e->halfedge->face->normal(), e->halfedge->twin->face->normal());
+			// if (std::abs(dotproduct - 1) > 0.001f && e->halfedge->face->degree() != 3 && e->halfedge->twin->face->degree() != 3)
+			// {
+			// 	// std::cout << e->halfedge->face->normal() << "; " << e->halfedge->twin->face->normal() << "\n";
+			// 	continue;
+			// }
 			int ori_local_degree = 0, after_local_degree = 0, deg[4] = {0};
 			deg[0] = e->halfedge->vertex->degree();
 			deg[1] = e->halfedge->twin->vertex->degree();
-			deg[2] = e->halfedge->next->vertex->degree();
-			deg[3] = e->halfedge->twin->next->vertex->degree();
+			deg[2] = e->halfedge->next->next->vertex->degree();
+			deg[3] = e->halfedge->twin->next->next->vertex->degree();
 			ori_local_degree = abs(deg[0] - 6) + abs(deg[1] - 6) + abs(deg[2] - 6) + abs(deg[3] - 6);
 			after_local_degree = abs(deg[0] - 1 - 6) + abs(deg[1] - 1 - 6) + abs(deg[2] + 1 - 6) + abs(deg[3] + 1 - 6);
+			// std::cout << e->id << " ";
 			if (after_local_degree < ori_local_degree)
 			{
 				flip_edge(e);
 				flip_cnt++;
-				std::cout << "flip: " << flip_cnt << "\n";
+				// std::cout << "flip: " << flip_cnt << "\n";
 			}
 		}
 
@@ -369,31 +403,33 @@ void Halfedge_Mesh::isotropic_remesh(Isotropic_Remesh_Parameters const &params)
 		// -> Repeat the tangential smoothing part params.smoothing_iterations times.
 		for (int j = params.smoothing_iterations; j > 0; j--)
 		{
-			std::vector<Vec3> centoids;
+			Vec3 centoids(0.f, 0.f, 0.f);
 			Vec3 direction_v; // update direction v = c - p
 			Vec3 v_normal(0.f, 0.f, 0.f);
-
-			for (auto v = vertices.begin(); v != vertices.end(); v++)
-			{
-				centoids.emplace_back(v->neighborhood_center());
-			}
 
 			int index = 0;
 			for (auto v = vertices.begin(); v != vertices.end(); v++)
 			{
-				direction_v = centoids[index] - v->position;
-				// projection modification
-				v_normal = v->normal();
-				direction_v -= dot(v_normal, direction_v) * v_normal;
-				v->position = v->position + params.smoothing_step * direction_v;
-				index++;
+				centoids = v->neighborhood_center();
+				if (centoids == centoids) // prevent inf case
+				{
+					direction_v = centoids - v->position;
+					// projection modification
+					v_normal = v->normal();
+					if (v_normal == v_normal) // prevent inf case
+					{
+						direction_v -= dot(v_normal, direction_v) * v_normal;
+						v->position = v->position + params.smoothing_step * direction_v;
+						index++;
+					}
+				}
 			}
 		}
 	}
 	// std::cout << my_describe_R();
-	//  NOTE: many of the steps in this function will be modifying the element
-	//        lists they are looping over. Take care to avoid use-after-free
-	//        or infinite-loop problems.
+	//   NOTE: many of the steps in this function will be modifying the element
+	//         lists they are looping over. Take care to avoid use-after-free
+	//         or infinite-loop problems.
 }
 
 struct Edge_Record

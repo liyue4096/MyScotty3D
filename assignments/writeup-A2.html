@@ -23,7 +23,7 @@ You do not need any screenshots for this task.
 *  Answer here:
 **1) case 1: e->on_boundary() is true, then return nullopt;**
 
-**2) case 2: if e is not a boundary edge, h->face and h->twin->face should be co-plane. If not, return nullopt;**
+**2) case 2: if e is not a boundary edge, h->face and h->twin->face should be co-plane(expect for both face are triangle). If not, return nullopt;**
 
 **3) case 3: general valid operation case.**
 
@@ -53,11 +53,13 @@ You do not need any screenshots for this task.
 *  Answer here:
 **1) case1: the mesh is a simple triangle, return nullopt;**
 
-**2) case2: if edge e is the only edge separating two faces, collapsed edge operation will destory connectivity;**
+**2) case2: the mesh is a three pyramid, return nullopt (prevent converting from 3D mesh to 2D mesh);**
 
-**3) case3: edge is a boundary edge;**
+**3) case3: if edge e is the only edge separating two faces, collapsed edge operation will destory connectivity;**
 
-**4) case4: edge isn't a boundary edge;**
+**3.1) case3.1: if e->h->face and e->h->twin->face are triangle, the conectivity of these two triangle should be 3, otherwise return nullopt;**
+
+**4) case4: general valid collapse operation case;**
 
 Your completion will be graded based on the reference `test.a2.l3.cpp` file and 
 checking that the operation works in the GUI.
@@ -99,7 +101,7 @@ checking that the operation works in the GUI.
 
 (##) A2GO1 CHOICE FINAL
 
-**Global Operation Completed: **
+**Global Operation Completed: A2GO2**
 
 You do not need any screenshots for this task. 
 
@@ -110,11 +112,15 @@ checking that the operation works in the GUI.
 
 Image of model in the GUI:
 <div class="twentytwenty-container">
-    <img src="A2-writeup/reference/model-image.png" alt="Your creation">
+    <img src="A2-writeup/student/my_penguin.png" alt="my_penguin">
 </div>
 Explanation of what it is and how you made it:
 
+**It is a penguin, origin model is improved by global operation: catmull->triangulate->remesh**
+
 Any free model sources you need to credit?
+
+**src="A2-writeup/student/penguin.js3d"**
 
 (##) A2LX1 EXTRA CREDIT
 
@@ -123,6 +129,8 @@ You do not need any screenshots for this task.
 **What edge cases did you handle?**
 
 *  Answer here:
+
+**1) case1: the target vertice is not boundary vertice;**
 
 Your completion will be graded based on the reference `test.a2.lx1.cpp` file and 
 checking that the operation works in the GUI.

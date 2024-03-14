@@ -225,13 +225,15 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::bisect_edge(EdgeRef e)
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e)
 {
 	// A2L2 (REQUIRED): split_edge
+	// std::cout << my_describe_R();
+
 	VertexRef vn_ref = emplace_vertex(); // add a new vertex
 	vn_ref->position = e->center();
 	HalfedgeRef h = e->halfedge, t = e->halfedge->twin;
 	VertexRef v1 = h->vertex;
 	VertexRef v2 = t->vertex;
 	interpolate_data({v1, v2}, vn_ref); // set bone_weights
-
+	// info("origin e:length: %f", e->length());
 	if (!e->on_boundary())
 	{
 		// change face->halfedge to prevent error
@@ -294,11 +296,12 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e)
 		ori_h_next->face = f_h_pi;
 		ori_t_next->next = pre_t_pi;
 		ori_t_next->face = f_t_pi;
-
+		// info("e_length: %f, e_pi_lenght: %f", e->length(), e_pi_ref->length());
+		//  std::cout << my_describe_R();
 		return vn_ref;
 	}
-	std::cout << my_describe_R();
-	// let h be the inner halfedge of e
+	// std::cout << my_describe_R();
+	//  let h be the inner halfedge of e
 	if (h->face->boundary)
 	{
 		h = h->twin;
@@ -334,11 +337,14 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e)
 	h->set_tnvef(t_pi, post_h, h->vertex, h->edge, h->face);
 	h_pi->set_tnvef(t, ori_h_next, vn_ref, e_pi_ref, f_h_pi);
 	interpolate_data({h, t}, h_pi);
+
 	t->set_tnvef(h_pi, t_pi, t->vertex, e_pi_ref, t->face);
 	t_pi->set_tnvef(h, ori_t_next, vn_ref, h->edge, t->face);
 	interpolate_data({h, t}, t_pi);
+
 	post_h->set_tnvef(pre_h_pi, ori_h_next_2, vn_ref, h_edge_ref, h->face);
 	interpolate_data({h_pi}, post_h);
+
 	pre_h_pi->set_tnvef(post_h, h_pi, ori_ver_h_next_2, h_edge_ref, f_h_pi);
 	interpolate_data({ori_h_next->twin}, pre_h_pi);
 
@@ -363,8 +369,8 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::inset_vertex(FaceRef f)
 	// A2Lx4 (OPTIONAL): inset vertex
 	if (f->boundary) // avoid edge cross
 		return std::nullopt;
-	std::cout << my_describe_R();
-	// 0. set up some variables
+	// std::cout << my_describe_R();
+	//  0. set up some variables
 	std::vector<FaceRef> f_new;
 	std::vector<EdgeRef> e_ridge_list;
 	std::vector<VertexRef> v_ref;
@@ -769,7 +775,7 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::dissolve_vertex(VertexRef v
 		// std::cout << my_describe_R();
 		return f;
 	}
-	std::cout << my_describe_R();
+	// std::cout << my_describe_R();
 	return std::nullopt;
 }
 
@@ -805,123 +811,66 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 	//  (also works for bone_weights data on vertices!)
 	// std::cout << my_describe_R();
 
+	// single triangle case:
 	if (edges.size() == 3)
 		return std::nullopt;
+
+	// Three pyramid case:
+	if (edges.size() == 6 && vertices.size() == 4)
+	{
+		return std::nullopt;
+	}
+
 	// invalid case: e is the only connected edge of either face
 	HalfedgeRef h = e->halfedge;
-	if (h->face->boundary)
-	{
-		h = h->twin;
-	}
+
 	HalfedgeRef t = h->twin;
-	int connectivity_edge0 = 0;
+	// get connectivity
+	int connectivity_edge0 = 0, connectivity_edge1 = 0;
+	do
+	{
+		if (!h->edge->on_boundary())
+		{
+			connectivity_edge0++;
+		}
+		h = h->next;
+	} while (h != e->halfedge);
+
+	do
+	{
+		if (!t->edge->on_boundary())
+		{
+			connectivity_edge1++;
+		}
+		t = t->next;
+	} while (t != e->halfedge->twin);
+
 	if (!e->on_boundary())
 	{
-		do
+		if (connectivity_edge0 == 1 || connectivity_edge1 == 1)
 		{
-			if (!h->edge->on_boundary())
-			{
-				connectivity_edge0++;
-			}
-			h = h->next;
-		} while (h != e->halfedge);
-
-		if (connectivity_edge0 < 2)
-		{
-			// std::cout << "yyyccdd\n";
-			return std::nullopt;
-		}
-
-		connectivity_edge0 = 0;
-		do
-		{
-			if (!t->edge->on_boundary())
-			{
-				connectivity_edge0++;
-			}
-			t = t->next;
-		} while (t != e->halfedge->twin);
-
-		if (connectivity_edge0 < 2)
-		{
-			// std::cout << "aabbccdd\n";
+			// std::cout << "1111\n";
 			return std::nullopt;
 		}
 	}
-	// std::cout << my_describe_R();
-	// start to collapse edge
-	// on boundary case:
-	if (e->on_boundary())
+
+	if (h->face->degree() == 3 && t->face->degree() == 3)
 	{
-		VertexRef v0 = h->vertex, v1 = t->vertex;
-		v0->position = (v1->position + v0->position) / 2.0f;
-		interpolate_data({v0, v1}, v0);
-
-		// target move v0 to midpoint, delete e and h->next->edge
-		auto update = [&](HalfedgeRef h)
+		// isolated triangle case:
+		if (connectivity_edge0 == 0 && connectivity_edge1 == 0)
 		{
-			// initialize
-			HalfedgeRef post_h = h->next, pre_h = h;
-			HalfedgeRef post_t = t->next, pre_t = t, tmp_t = t;
-
-			while (pre_h->next != h)
-			{
-				pre_h = pre_h->next; // to get true pre_h
-			}
-			while (pre_t->next != t)
-			{
-				pre_t = pre_t->next; // to get true pre_t
-			}
-			HalfedgeRef pre_h_2_pi = post_h->twin; // which next is pre_h after collapse edge
-			while (pre_h_2_pi->next != post_h->twin)
-			{
-				pre_h_2_pi = pre_h_2_pi->next;
-			}
-			if (v0->halfedge == h)
-			{
-				v0->halfedge = t->next;
-			}
-			// info("pre_h %d, post_h->twin->next %d, t: %d", pre_h->id, post_h->twin->next->id, t->id);
-
-			// before data modification, save intended delete id
-			EdgeRef e0 = h->edge, e1 = h->next->edge;
-			FaceRef f0 = h->face;
-			// info("check e: %d, %d; face: %d", e0->id, e1->id, f0->id);
-
-			interpolate_data({h, post_h}, post_h);
-			// before remove v1, change halfedge->vertex to v0
-			do
-			{
-				tmp_t->vertex = v0;
-				tmp_t = tmp_t->twin->next;
-				// info("%d", tmp_t->id);
-			} while (tmp_t != t);
-
-			FaceRef f = h->next->twin->face, f_b = t->face;
-			f->halfedge = post_h->twin->next; // avoid broken when delete halfedge
-			f_b->halfedge = t->next;
-
-			pre_h->next = post_h->twin->next;
-			pre_h->face = pre_t->twin->face;
-			pre_h_2_pi->next = pre_h;
-			pre_t->next = post_t;
-
-			// std::cout << my_describe_R();
-			erase_face(f0);
-			erase_vertex(v1);
-			erase_edge(e0);
-			erase_edge(e1);
-			erase_halfedge(post_h->twin);
-			erase_halfedge(post_h);
-			erase_halfedge(t);
-			erase_halfedge(h);
-		};
-		update(h);
-		// std::cout << my_describe_R();
-		return v0;
+			// std::cout << "0000\n";
+			return std::nullopt;
+		}
+		if (!e->on_boundary() && connectivity_edge0 < 3 && connectivity_edge1 < 3)
+		{
+			// std::cout << "2222\n";
+			return std::nullopt;
+		}
 	}
+	//  std::cout << my_describe_R();
 
-	// inner case:
+	//   start to collapse edge
 	// std::optional<Halfedge_Mesh::VertexRef> v0 = bisect_edge(e);
 	// 1. create a new middle pt
 	VertexRef vn = emplace_vertex(); // add a new vertex
@@ -941,6 +890,7 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 		}
 		tmp_halfedge = tmp_halfedge->twin->next;
 	} while (tmp_halfedge != h);
+
 	tmp_halfedge = t;
 	do
 	{
@@ -964,6 +914,7 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 		// 3. no collapse case: i.e. face of pre, post, h is not a triangle
 		if (post_h->next != pre_h)
 		{
+			h->face->halfedge = pre_h;
 			pre_h->next = post_h;
 			vn->halfedge = post_h;
 			return;
@@ -971,12 +922,12 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 		// 4. collapse case: add 1 edge, 2 halfedge; delete 2 edges, 4 halfedges, 1 face
 		// define some useful variables
 		VertexRef v1 = pre_h->vertex;
-		FaceRef f1 = post_h->face, f2 = pre_h->twin->face, f0 = h->face; // f0 will be deleted
-		EdgeRef e_post_h = post_h->edge, e_pre_h = pre_h->edge;			 // these two will be deleted
+		FaceRef f1 = post_h->twin->face, f2 = pre_h->twin->face, f0 = h->face; // f0 will be deleted
+		EdgeRef e_post_h = post_h->edge, e_pre_h = pre_h->edge;				   // these two will be deleted
 		// create 2 hldgs, 1 edge
 		HalfedgeRef h_pi = emplace_halfedge(), t_pi = emplace_halfedge();
 		EdgeRef e_pi = emplace_edge();
-		interpolate_data({pre_h, pre_h}, h_pi);
+		interpolate_data({pre_h}, h_pi);
 		interpolate_data({h, post_h}, t_pi);
 
 		h_pi->set_tnvef(t_pi, post_h->twin->next, v1, e_pi, f1);
@@ -996,11 +947,11 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 		}
 		tmp_halfedge->next = t_pi;
 		// update f, e, v ->halfedge
-		if (f1->halfedge == post_h->twin)
+		// if (f1->halfedge == post_h->twin)
 		{
 			f1->halfedge = h_pi;
 		}
-		if (f2->halfedge == pre_h->twin)
+		// if (f2->halfedge == pre_h->twin)
 		{
 			f2->halfedge = t_pi;
 		}
