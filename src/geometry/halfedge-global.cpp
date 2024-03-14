@@ -37,8 +37,8 @@ void Halfedge_Mesh::triangulate_face(FaceRef f)
 		h = h->next;
 	} while (h != f->halfedge);
 
-	HalfedgeCRef h_ref = h, h_post2_ref = h->next->next;
-	// 0.5 change f->halfedge reference
+	// HalfedgeCRef h_ref = h, h_post2_ref = h->next->next;
+	//  0.5 change f->halfedge reference
 	f->halfedge = h->next->next;
 	// 1.0 add 2 halfedge, 1 edge, 1 face
 	HalfedgeRef h_new = emplace_halfedge(), t_new = emplace_halfedge();
@@ -306,7 +306,7 @@ void Halfedge_Mesh::isotropic_remesh(Isotropic_Remesh_Parameters const &params)
 		mean_e_length /= (float)e_size;
 		// -> Split edges much longer than the target length.
 		//     ("much longer" means > target length * params.longer_factor)
-		auto edge_end_iter = --edges.end(), edge_begin_iter = edges.begin(), e_next = edges.begin();
+		auto edge_end_iter = --edges.end(); // edge_begin_iter = edges.begin(), e_next = edges.begin();
 		// info("begin_id %d, end_id: %d, upper_length: %f, lower_length: %f", edge_begin_iter->id, edge_end_iter->id, mean_e_length * params.longer_factor, mean_e_length * params.shorter_factor);
 		bool end_sign = true;
 		auto e = edges.begin();
@@ -329,7 +329,7 @@ void Halfedge_Mesh::isotropic_remesh(Isotropic_Remesh_Parameters const &params)
 		// -> Collapse edges much shorter than the target length.
 		//     ("much shorter" means < target length * params.shorter_factor)
 		float ref_length = mean_e_length * params.shorter_factor;
-		auto tmp_e = edges.begin();
+
 		std::vector<Halfedge_Mesh::EdgeRef> edges_to_remove;
 		for (auto edge = edges.begin(); e->id != edge_end_iter->id; edge++)
 		{
