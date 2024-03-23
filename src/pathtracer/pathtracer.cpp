@@ -10,7 +10,7 @@ namespace PT
 {
 
 	constexpr bool SAMPLE_AREA_LIGHTS = true;
-	constexpr bool RENDER_NORMALS = false;
+	constexpr bool RENDER_NORMALS = true;
 	constexpr bool LOG_CAMERA_RAYS = true;
 	constexpr bool LOG_AREA_LIGHT_RAYS = false;
 	static thread_local RNG log_rng(0x15462662); // separate RNG for logging a fraction of rays to avoid changing result when logging enabled
@@ -476,7 +476,7 @@ namespace PT
 					// if LOG_CAMERA_RAYS is set, add ray to the debug log with some small probability:
 					if constexpr (LOG_CAMERA_RAYS)
 					{
-						if (log_rng.coin_flip(0.000001f))
+						if (log_rng.coin_flip(0.0001f))
 						{
 							log_ray(ray, 10.0f, Spectrum{1.0f});
 						}

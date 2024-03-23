@@ -228,7 +228,7 @@ bool Halfedge_Mesh::loop_subdivide()
 			return false;
 		}
 	}
-
+	std::cout << my_describe_R();
 	// if execution reaches this point, all non-boundary faces are triangular, so proceed to subdivide:
 
 	// A2Go1: Loop subdivision.
@@ -246,10 +246,60 @@ bool Halfedge_Mesh::loop_subdivide()
 	// Compute new positions for all the vertices in the input mesh using
 	// the Loop subdivision rule and store them in vertex_new_pos.
 	[[maybe_unused]] std::unordered_map<VertexRef, Vec3> vertex_new_pos;
+	for (auto v = vertices.begin(); v != vertices.end(); v++)
+	{
+		if (v->on_boundary())
+		{
+			Vec3 s(0.f, 0.f, 0.f);
+			HalfedgeRef h = v->halfedge;
+			do
+			{
+				if (h->edge->on_boundary())
+				{
+					s += h->twin->vertex->position / 8.f;
+				}
+				h = h->twin->next;
+			} while (h != v->halfedge);
+			s += v->position * 0.75;
+
+			vertex_new_pos.emplace(v, s);
+			continue;
+		}
+
+		float u;
+		int n = (int)v->degree();
+		n == 3 ? (u = 3.f / 16) : (u = 3.f / (8.f * n));
+
+		Vec3 v_pos_new(0.f, 0.f, 0.f);
+		v_pos_new = (1 - u * n) * v->position;
+		HalfedgeRef h = v->halfedge;
+		do
+		{
+			v_pos_new += u * h->twin->vertex->position;
+			h = h->twin->next;
+		} while (h != v->halfedge);
+
+		vertex_new_pos.emplace(v, v_pos_new);
+	}
 
 	// Next, compute the subdivided vertex positions associated with edges, and
 	// store them in edge_new_pos:
 	[[maybe_unused]] std::unordered_map<EdgeRef, Vec3> edge_new_pos;
+	for (auto e = edges.begin(); e != edges.end(); e++)
+	{
+		if (e->on_boundary())
+		{
+			edge_new_pos.emplace(e, e->center());
+			continue;
+		}
+
+		Vec3 mid_pos(0.f, 0.f, 0.f);
+		HalfedgeRef h = e->halfedge;
+		mid_pos = 3.f / 8 * (h->vertex->position + h->twin->vertex->position);
+		mid_pos += 1.f / 8 * (h->next->next->vertex->position + h->twin->next->next->vertex->position);
+
+		edge_new_pos.emplace(e, mid_pos);
+	}
 
 	// Next, we're going to split every edge in the mesh, in any order, placing
 	// the split vertex at the recorded edge_new_pos.
@@ -261,6 +311,31 @@ bool Halfedge_Mesh::loop_subdivide()
 	// Also note that in this loop, we only want to iterate over edges of the
 	// original mesh. Otherwise, we'll end up splitting edges that we just split
 	// (and the loop will never end!)
+	int n = (int)edges.size();
+	EdgeRef e = edges.begin();
+	VertexRef v_new;
+	std::optional<VertexRef> rlt;
+	for (int i = 0; i < n; i++)
+	{
+		EdgeRef nextEdge = e;
+		nextEdge++;
+
+		// now, even if splitting the edge deletes it...
+		if (e->length())
+		{
+			info("split v: %d, %d", e->halfedge->vertex->id, e->halfedge->twin->vertex->id);
+			rlt = split_edge(e);
+			if (rlt.has_value())
+			{
+				v_new = *rlt;
+				v_new->position = edge_new_pos[e];
+				// info("new vertex: %d", v_new->id);
+			}
+		}
+
+		// ...we still have a valid reference to the next edge.
+		e = nextEdge;
+	}
 
 	// Now flip any new edge that connects a new and old vertex.
 	// To check if a vertex is new, you can use a simple helper that
@@ -270,10 +345,36 @@ bool Halfedge_Mesh::loop_subdivide()
 		return !vertex_new_pos.count(v);
 	};
 
+	e = edges.begin();
+	while (e != edges.end())
+	{
+		// info("new_e id: %d, e_v0: %d, e_v1: %d", e->id, e->halfedge->vertex->id, e->halfedge->twin->vertex->id);
+		if (is_new(e->halfedge->vertex) && is_new(e->halfedge->twin->vertex))
+		{
+			new_edges.emplace_back(e);
+		}
+		e++;
+	}
+	info("new_edge size %d", new_edges.size());
 	// Now flip any new edge that connects an old and new vertex.
+	for (auto new_e : new_edges)
+	{
+		if (is_new(new_e->halfedge->vertex) ^ is_new(new_e->halfedge->twin->vertex))
+		{
+			flip_edge(new_e);
+		}
+	}
 
 	// Finally, copy new vertex positions into the Vertex::position.
 
+	for (auto v = vertices.begin(); v != vertices.end(); v++)
+	{
+		if (!is_new(v))
+		{
+			v->position = vertex_new_pos[v];
+		}
+	}
+	std::cout << my_describe_R();
 	return true;
 }
 

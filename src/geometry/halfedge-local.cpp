@@ -655,46 +655,74 @@ std::optional<Halfedge_Mesh::EdgeRef> Halfedge_Mesh::flip_edge(EdgeRef e)
 		return std::nullopt;
 	}
 
-	HalfedgeRef h = e->halfedge;
-	VertexRef tarvec = h->next->next->vertex;
-	VertexRef srcvec = h->twin->next->next->vertex;
-
-	// change face
-	h->face->halfedge = h;
-	h->twin->face->halfedge = h->twin;
-	h->next->face = h->twin->face;
-	h->twin->next->face = h->face;
-
-	// change vertex->halfedge
-	h->vertex->halfedge = h->twin->next;
-	h->twin->vertex->halfedge = h->next;
-
+	HalfedgeRef h = e->halfedge, t = h->twin, post_h = h->next, post_2_h = post_h->next, post_t = t->next, post_2_t = post_t->next;
+	VertexRef v0 = h->vertex, v1 = t->vertex, v2 = post_2_h->vertex, v3 = post_2_t->vertex;
+	FaceRef fh = h->face, ft = t->face;
 	// change halfedge
-	HalfedgeRef pre_h = h, pre_twin = h->twin, post_h = h->next, post_twin = h->twin->next;
-
+	HalfedgeRef pre_h = h, pre_t = h->twin;
 	while (pre_h->next != h)
 	{
 		pre_h = pre_h->next; // to get true pre_h
 	}
-	while (pre_twin->next != h->twin)
+	while (pre_t->next != h->twin)
 	{
-		pre_twin = pre_twin->next; // to get true pre_twin
+		pre_t = pre_t->next; // to get true pre_twin
 	}
+	fh->halfedge = h;
+	ft->halfedge = t;
+	v0->halfedge = post_t;
+	v1->halfedge = post_h;
 
-	h->twin->next = h->twin->next->next;
-	h->next = h->next->next;
+	h->set_tnvef(t, post_2_h, v3, e, fh);
+	t->set_tnvef(h, post_2_t, v2, e, ft);
+	post_h->next = t;
+	pre_h->next = post_t;
+	post_h->face = ft;
+	post_t->next = h;
+	pre_t->next = post_h;
+	post_t->face = fh;
 
-	pre_h->next = post_twin;
-	pre_twin->next = post_h;
-	post_h->next = h->twin;
-	post_twin->next = h;
-
-	// change vertex
-	h->vertex = srcvec;
-	h->twin->vertex = tarvec;
-
-	// std::cout << my_describe_R();
+	interpolate_data({post_2_t}, h);
+	interpolate_data({post_2_h}, t);
 	return e;
+
+	// VertexRef srcvec = t->next->next->vertex, tarvec = h->next->next->vertex;
+	// // change face
+	// h->face->halfedge = h;
+	// t->face->halfedge = t;
+	// h->next->face = t->face;
+	// t->next->face = h->face;
+
+	// // change vertex->halfedge
+	// h->vertex->halfedge = t->next;
+	// t->vertex->halfedge = h->next;
+
+	// // change halfedge
+	// HalfedgeRef pre_h = h, pre_twin = h->twin, post_h = h->next, post_twin = t->next;
+
+	// while (pre_h->next != h)
+	// {
+	// 	pre_h = pre_h->next; // to get true pre_h
+	// }
+	// while (pre_twin->next != h->twin)
+	// {
+	// 	pre_twin = pre_twin->next; // to get true pre_twin
+	// }
+
+	// t->next = t->next->next;
+	// h->next = h->next->next;
+
+	// pre_h->next = post_twin;
+	// pre_twin->next = post_h;
+	// post_h->next = t;
+	// post_twin->next = h;
+
+	// // change vertex
+	// h->vertex = srcvec;
+	// t->vertex = tarvec;
+
+	// // std::cout << my_describe_R();
+	// return e;
 }
 
 /*
@@ -859,19 +887,16 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e)
 		// isolated triangle case:
 		if (connectivity_edge0 == 0 && connectivity_edge1 == 0)
 		{
-			// std::cout << "0000\n";
 			return std::nullopt;
 		}
 		if (!e->on_boundary() && connectivity_edge0 < 3 && connectivity_edge1 < 3)
 		{
-			// std::cout << "2222\n";
 			return std::nullopt;
 		}
 	}
 	//  std::cout << my_describe_R();
 
 	//   start to collapse edge
-	// std::optional<Halfedge_Mesh::VertexRef> v0 = bisect_edge(e);
 	// 1. create a new middle pt
 	VertexRef vn = emplace_vertex(); // add a new vertex
 	vn->position = e->center();
@@ -1096,3 +1121,61 @@ void Halfedge_Mesh::extrude_positions(FaceRef face, Vec3 move, float shrink)
 	// delete vc
 	erase_vertex(vc);
 }
+
+// std::optional<Halfedge_Mesh::EdgeRef> Halfedge_Mesh::flip_edge(EdgeRef e)
+// {
+// 	// A2L1: Flip Edge
+// 	if (e->on_boundary())
+// 	{
+// 		return std::nullopt;
+// 	}
+// 	// the edge can be filped only two faces are coplane(except triangle case)
+// 	float dotproduct = dot(e->halfedge->face->normal(), e->halfedge->twin->face->normal());
+// 	if (std::abs(dotproduct - 1) > 0.001f && e->halfedge->face->degree() != 3 && e->halfedge->twin->face->degree() != 3)
+// 	{
+// 		return std::nullopt;
+// 	}
+// 	if (e->halfedge->vertex->degree() < 3 || e->halfedge->twin->vertex->degree() < 3)
+// 		return std::nullopt;
+
+// 	// collect
+// 	HalfedgeRef h0 = e->halfedge;
+// 	HalfedgeRef h1 = h0->next;
+// 	HalfedgeRef h2 = h1->next;
+// 	HalfedgeRef t0 = h0->twin;
+// 	HalfedgeRef t1 = t0->next;
+// 	HalfedgeRef t2 = t1->next;
+// 	VertexRef v0 = h0->vertex;
+// 	VertexRef v1 = h2->vertex;
+// 	VertexRef v2 = t0->vertex;
+// 	VertexRef v3 = t2->vertex;
+// 	FaceRef f0 = h0->face;
+// 	FaceRef f1 = t0->face;
+
+// 	// reassign
+// 	// last element
+// 	HalfedgeRef h_last = h0, t_last = t0;
+// 	do
+// 	{
+// 		h_last = h_last->next;
+// 	} while (h_last->next != h0);
+// 	do
+// 	{
+// 		t_last = t_last->next;
+// 	} while (t_last->next != t0);
+// 	h0->set_tnvef(t0, h2, v3, e, f0);
+// 	t0->set_tnvef(h0, t2, v1, e, f1);
+// 	h1->set_tnvef(h1->twin, t0, v2, h1->edge, f1);
+// 	t1->set_tnvef(t1->twin, h0, v0, t1->edge, f0);
+// 	h_last->next = t1;
+// 	t_last->next = h1;
+// 	v0->halfedge = t1;
+// 	v2->halfedge = h1;
+// 	f0->halfedge = h0;
+// 	f1->halfedge = t0;
+
+// 	interpolate_data({h2, t1}, h0);
+// 	interpolate_data({t2, h1}, t0);
+
+// 	return e;
+// }

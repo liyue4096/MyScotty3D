@@ -27,8 +27,7 @@ std::pair<Ray, float> Camera::sample_ray(RNG &rng, uint32_t px, uint32_t py)
 	Vec2 sensor_pixel = Vec2(float(px), float(py)) + offset;
 
 	// TODO: Transform from sensor pixels into world position on the sensor plane
-	(void)sensor_pixel;
-	float h = 1.f, w = aspect_ratio * h;
+	float h = 2 * focal_dist * tan(vertical_fov / 2 * PI_F / 180), w = aspect_ratio * h;
 	Vec3 world_pos = Vec3(sensor_pixel.x / film.width * w - w / 2,
 						  sensor_pixel.y / film.height * h - h / 2, -1.f);
 
