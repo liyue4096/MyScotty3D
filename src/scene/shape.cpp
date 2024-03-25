@@ -76,7 +76,7 @@ namespace Shapes
 			t = std::min(t1, t2);
 		}
 		// out of bound check case
-		if (t < ray.dist_bounds.y || t > ray.dist_bounds.y)
+		if (t < ray.dist_bounds.x || t > ray.dist_bounds.y)
 		{
 			return ret;
 		}

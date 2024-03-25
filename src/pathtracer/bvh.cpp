@@ -33,8 +33,8 @@ namespace PT
 
 		// Keep these
 		nodes.clear();
+		// info("----------prim size : %d \n", prims.size());
 		primitives = std::move(prims);
-		// info("prim size : %d \n", primitives.size());
 
 		// Construct a BVH from the given vector of primitives and maximum leaf
 		// size configuration.
@@ -42,11 +42,11 @@ namespace PT
 		// info("primitives size %d, max_leaf_size %d", primitives.size(), max_leaf_size);
 		// root_idx = build_my_BVH(primitives, max_leaf_size, 0, primitives.size(), 0);
 		root_idx = build_my_BVH_new(primitives, primitives.begin(), primitives.end(), max_leaf_size, 0);
-
-		// for (int i = 0; i < nodes.size(); i++)
-		// {
-		// 	info("%d -> %d, %d", i, nodes[i].l, nodes[i].r);
-		// }
+		// root_idx = buildRecursive(primitives, 0, (int)primitives.size(), max_leaf_size);
+		//  for (int i = 0; i < nodes.size(); i++)
+		//  {
+		//  	info("%d -> %d, %d", i, nodes[i].l, nodes[i].r);
+		//  }
 	}
 
 	template <typename Primitive>
@@ -135,7 +135,6 @@ namespace PT
 
 		size_t bin_size = size;
 		size_t binCount = std::min(10, (int)bin_size);
-		// int bin_size = std::min(10, prims.size() / max_leaf_size);
 		std::vector<Bin> bins;
 		bins.resize(binCount);
 

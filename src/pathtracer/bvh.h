@@ -46,6 +46,13 @@ namespace PT
 			friend class BVH<Primitive>;
 		};
 
+		struct HitInfo1
+		{
+			int p_idx;
+			float t;
+			friend class BVH<Primitive>;
+		};
+
 		BVH() = default;
 		BVH(std::vector<Primitive> &&primitives, size_t max_leaf_size = 1);
 		void build(std::vector<Primitive> &&primitives, size_t max_leaf_size = 1);
@@ -56,6 +63,7 @@ namespace PT
 			typename std::vector<Primitive>::iterator endIter,
 			size_t max_leaf_size,
 			int depth);
+		// size_t buildRecursive(std::vector<Primitive> &primitives, int start_idx, int end_idx, size_t max_leaf_size);
 
 		BVH(BVH &&src) = default;
 		BVH &operator=(BVH &&src) = default;
@@ -68,6 +76,7 @@ namespace PT
 		void find_closest_hit(const Ray &ray, const Node &node, HitInfo &closest) const;
 		void intersect(const Ray &ray, typename std::vector<Primitive>::const_iterator it, HitInfo &hit) const;
 		bool intersect(const Ray &ray, const BBox &bbox, HitInfo &hit) const;
+		// void BVH<Primitive>::find_closest_hit1(const Ray &ray, const Node &node, HitInfo1 &closest) const;
 
 		template <typename P = Primitive>
 		typename std::enable_if<std::is_copy_assignable_v<P>, BVH<P>>::type copy() const;
