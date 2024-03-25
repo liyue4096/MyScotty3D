@@ -169,7 +169,7 @@ namespace PT
 		}
 
 		float bestCost = std::numeric_limits<float>::max();
-		size_t bestSplit = 0, bestSize = 0;
+		size_t bestSize = 0;
 		size_t leftSize = 0, rightSize = 0;
 		BBox parent;
 		for (size_t i = 1; i < binCount; ++i)
@@ -192,7 +192,7 @@ namespace PT
 			{
 				// info("depth %d, cost %f, leftsize %d, rightsize %d, bestSplit %d", depth, cost, leftSize, rightSize, bestSplit);
 				bestCost = cost;
-				bestSplit = i;
+				// bestSplit = i;
 				bestSize = leftSize;
 			}
 			parent.enclose(bboxLeft);
