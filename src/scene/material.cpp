@@ -2,283 +2,336 @@
 #include "material.h"
 #include "../util/rand.h"
 
-namespace Materials {
+namespace Materials
+{
 
-Vec3 reflect(Vec3 dir) {
-	//A3T5 Materials - reflect helper
+	Vec3 reflect(Vec3 dir)
+	{
+		// A3T5 Materials - reflect helper
 
-    // Return direction to incoming light that would be
-	// reflected out in direction dir from surface
-	// with normal (0,1,0)
+		// Return direction to incoming light that would be
+		// reflected out in direction dir from surface
+		// with normal (0,1,0)
+		Vec3 ret = -dir + 2 * dot(Vec3(0.f, 1.f, 0.f), dir) * Vec3(0.f, 1.f, 0.f);
+		return ret;
+	}
 
-    return Vec3{};
-}
+	Vec3 refract(Vec3 out_dir, float index_of_refraction, bool &was_internal)
+	{
+		// A3T5 Materials - refract helper
 
-Vec3 refract(Vec3 out_dir, float index_of_refraction, bool& was_internal) {
-	//A3T5 Materials - refract helper
+		// Use Snell's Law to refract out_dir through the surface.
+		// Return the refracted direction. Set was_internal to true if
+		// refraction does not occur due to total internal reflection,
+		// and false otherwise.
 
-	// Use Snell's Law to refract out_dir through the surface.
-	// Return the refracted direction. Set was_internal to true if
-	// refraction does not occur due to total internal reflection,
-	// and false otherwise.
+		// The surface normal is (0,1,0)
 
-	// The surface normal is (0,1,0)
+		return Vec3{};
+	}
 
-	return Vec3{};
-}
+	float schlick(Vec3 in_dir, float index_of_refraction)
+	{
+		// A3T5 Materials - Schlick's approximation helper
 
-float schlick(Vec3 in_dir, float index_of_refraction) {
-	//A3T5 Materials - Schlick's approximation helper
+		// Implement Schlick's approximation of the Fresnel reflection factor.
 
-	// Implement Schlick's approximation of the Fresnel reflection factor.
+		return 0.0f;
+	}
 
-	return 0.0f;
-}
+	Spectrum Lambertian::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
+	{
+		// A3T4: Materials - Lambertian BSDF evaluation
 
-Spectrum Lambertian::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
-	//A3T4: Materials - Lambertian BSDF evaluation
+		// Compute the ratio of outgoing/incoming radiance when light from in_dir
+		// is reflected through out_dir: (albedo / PI_F) * cos(theta).
+		// Note that for Scotty3D, y is the 'up' direction.
+		Vec3 normal(0.f, 1.f, 0.f);
+		float cos_theta = dot(in, normal) / in.norm();
+		Spectrum ret = albedo.lock()->evaluate(uv);
 
-    // Compute the ratio of outgoing/incoming radiance when light from in_dir
-    // is reflected through out_dir: (albedo / PI_F) * cos(theta).
-    // Note that for Scotty3D, y is the 'up' direction.
+		return ret / PI_F * cos_theta;
+	}
 
-    return Spectrum{};
-}
+	Scatter Lambertian::scatter(RNG &rng, Vec3 out, Vec2 uv) const
+	{
+		// A3T4: Materials - Lambertian BSDF scattering
+		// Select a scattered light direction at random from the Lambertian BSDF
 
-Scatter Lambertian::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
-	//A3T4: Materials - Lambertian BSDF scattering
-	//Select a scattered light direction at random from the Lambertian BSDF
+		[[maybe_unused]] Samplers::Hemisphere::Cosine sampler; // this will be useful
 
-	[[maybe_unused]] Samplers::Hemisphere::Cosine sampler; //this will be useful
+		Scatter ret;
+		// TODO: sample the direction the light was scatter from from a cosine-weighted hemisphere distribution:
+		ret.direction = sampler.sample(rng);
 
-	Scatter ret;
-	//TODO: sample the direction the light was scatter from from a cosine-weighted hemisphere distribution:
-	ret.direction = Vec3{};
+		// TODO: compute the attenuation of the light using Lambertian::evaluate():
+		ret.attenuation = evaluate(out, ret.direction, uv);
+		return ret;
+	}
 
-	//TODO: compute the attenuation of the light using Lambertian::evaluate():
-	ret.attenuation = Spectrum{};
+	float Lambertian::pdf(Vec3 out, Vec3 in) const
+	{
+		// A3T4: Materials - Lambertian BSDF probability density function
+		//  Compute the PDF for sampling in_dir from the cosine-weighted hemisphere distribution.
+		[[maybe_unused]] Samplers::Hemisphere::Cosine sampler; // this might be handy!
 
-	return ret;
-}
+		return sampler.pdf(in);
+	}
 
-float Lambertian::pdf(Vec3 out, Vec3 in) const {
-	//A3T4: Materials - Lambertian BSDF probability density function
-    // Compute the PDF for sampling in_dir from the cosine-weighted hemisphere distribution.
-	[[maybe_unused]] Samplers::Hemisphere::Cosine sampler; //this might be handy!
+	Spectrum Lambertian::emission(Vec2 uv) const
+	{
+		return {};
+	}
 
-    return 0.0f;
-}
+	std::weak_ptr<Texture> Lambertian::display() const
+	{
+		return albedo;
+	}
 
-Spectrum Lambertian::emission(Vec2 uv) const {
-	return {};
-}
+	void Lambertian::for_each(const std::function<void(std::weak_ptr<Texture> &)> &f)
+	{
+		f(albedo);
+	}
 
-std::weak_ptr<Texture> Lambertian::display() const {
-	return albedo;
-}
+	Spectrum Mirror::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
+	{
+		return {};
+	}
 
-void Lambertian::for_each(const std::function<void(std::weak_ptr<Texture>&)>& f) {
-	f(albedo);
-}
+	Scatter Mirror::scatter(RNG &rng, Vec3 out, Vec2 uv) const
+	{
+		// A3T5: mirror
 
-Spectrum Mirror::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
-	return {};
-}
+		// Use reflect to compute the new direction
+		// Don't forget that this is a discrete material!
+		// Similar to albedo, reflectance represents the ratio of incoming light to reflected light
 
-Scatter Mirror::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
-	//A3T5: mirror
+		Scatter ret;
+		ret.direction = reflect(out);
+		ret.attenuation = reflectance.lock()->evaluate(uv);
+		return ret;
+	}
 
-	// Use reflect to compute the new direction
-	// Don't forget that this is a discrete material!
-	// Similar to albedo, reflectance represents the ratio of incoming light to reflected light
+	float Mirror::pdf(Vec3 out, Vec3 in) const
+	{
+		return 0.0f;
+	}
 
-    Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
-    return ret;
-}
+	Spectrum Mirror::emission(Vec2 uv) const
+	{
+		return {};
+	}
 
-float Mirror::pdf(Vec3 out, Vec3 in) const {
-	return 0.0f;
-}
+	std::weak_ptr<Texture> Mirror::display() const
+	{
+		return reflectance;
+	}
 
-Spectrum Mirror::emission(Vec2 uv) const {
-	return {};
-}
+	void Mirror::for_each(const std::function<void(std::weak_ptr<Texture> &)> &f)
+	{
+		f(reflectance);
+	}
 
-std::weak_ptr<Texture> Mirror::display() const {
-	return reflectance;
-}
+	Spectrum Refract::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
+	{
+		return {};
+	}
 
-void Mirror::for_each(const std::function<void(std::weak_ptr<Texture>&)>& f) {
-	f(reflectance);
-}
+	Scatter Refract::scatter(RNG &rng, Vec3 out, Vec2 uv) const
+	{
+		// A3T5 - refract
 
-Spectrum Refract::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
-	return {};
-}
+		// Use refract to determine the new direction - what happens in the total internal reflection case?
+		// Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
+		// Don't forget that this is a discrete material!
+		// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
+		//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
 
-Scatter Refract::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
-	//A3T5 - refract
+		Scatter ret;
+		ret.direction = Vec3();
+		ret.attenuation = Spectrum{};
+		return ret;
+	}
 
-	// Use refract to determine the new direction - what happens in the total internal reflection case?
-    // Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
-	// Don't forget that this is a discrete material!
-	// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
-	//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
+	float Refract::pdf(Vec3 out, Vec3 in) const
+	{
+		return 0.0f;
+	}
 
-    Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
-    return ret;
-}
+	Spectrum Refract::emission(Vec2 uv) const
+	{
+		return {};
+	}
 
-float Refract::pdf(Vec3 out, Vec3 in) const {
-	return 0.0f;
-}
+	bool Refract::is_emissive() const
+	{
+		return false;
+	}
 
-Spectrum Refract::emission(Vec2 uv) const {
-	return {};
-}
+	bool Refract::is_specular() const
+	{
+		return true;
+	}
 
-bool Refract::is_emissive() const {
-	return false;
-}
+	bool Refract::is_sided() const
+	{
+		return true;
+	}
 
-bool Refract::is_specular() const {
-	return true;
-}
+	std::weak_ptr<Texture> Refract::display() const
+	{
+		return transmittance;
+	}
 
-bool Refract::is_sided() const {
-	return true;
-}
+	void Refract::for_each(const std::function<void(std::weak_ptr<Texture> &)> &f)
+	{
+		f(transmittance);
+	}
 
-std::weak_ptr<Texture> Refract::display() const {
-	return transmittance;
-}
+	Spectrum Glass::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
+	{
+		return {};
+	}
 
-void Refract::for_each(const std::function<void(std::weak_ptr<Texture>&)>& f) {
-	f(transmittance);
-}
+	Scatter Glass::scatter(RNG &rng, Vec3 out, Vec2 uv) const
+	{
+		// A3T5 - glass
 
-Spectrum Glass::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
-	return {};
-}
+		// (1) Compute Fresnel coefficient. Tip: Schlick's approximation.
+		// (2) Reflect or refract probabilistically based on Fresnel coefficient. Tip: RNG::coin_flip
+		// (3) Compute attenuation based on reflectance or transmittance
 
-Scatter Glass::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
-	//A3T5 - glass
+		// Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
+		// What happens upon total internal reflection?
+		// When debugging Glass, it may be useful to compare to a pure-refraction BSDF
+		// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
+		//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
 
-    // (1) Compute Fresnel coefficient. Tip: Schlick's approximation.
-    // (2) Reflect or refract probabilistically based on Fresnel coefficient. Tip: RNG::coin_flip
-    // (3) Compute attenuation based on reflectance or transmittance
+		Scatter ret;
+		ret.direction = Vec3();
+		ret.attenuation = Spectrum{};
+		return ret;
+	}
 
-    // Be wary of your eta1/eta2 ratio - are you entering or leaving the surface?
-    // What happens upon total internal reflection?
-    // When debugging Glass, it may be useful to compare to a pure-refraction BSDF
-	// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
-	//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
+	float Glass::pdf(Vec3 out, Vec3 in) const
+	{
+		return 0.0f;
+	}
 
-    Scatter ret;
-    ret.direction = Vec3();
-    ret.attenuation = Spectrum{};
-    return ret;
-}
+	Spectrum Glass::emission(Vec2 uv) const
+	{
+		return {};
+	}
 
-float Glass::pdf(Vec3 out, Vec3 in) const {
-	return 0.0f;
-}
+	bool Glass::is_emissive() const
+	{
+		return false;
+	}
 
-Spectrum Glass::emission(Vec2 uv) const {
-	return {};
-}
+	bool Glass::is_specular() const
+	{
+		return true;
+	}
 
-bool Glass::is_emissive() const {
-	return false;
-}
+	bool Glass::is_sided() const
+	{
+		return true;
+	}
 
-bool Glass::is_specular() const {
-	return true;
-}
+	std::weak_ptr<Texture> Glass::display() const
+	{
+		return transmittance;
+	}
 
-bool Glass::is_sided() const {
-	return true;
-}
+	void Glass::for_each(const std::function<void(std::weak_ptr<Texture> &)> &f)
+	{
+		f(reflectance);
+		f(transmittance);
+	}
 
-std::weak_ptr<Texture> Glass::display() const {
-	return transmittance;
-}
+	Spectrum Emissive::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
+	{
+		return {};
+	}
 
-void Glass::for_each(const std::function<void(std::weak_ptr<Texture>&)>& f) {
-	f(reflectance);
-	f(transmittance);
-}
+	Scatter Emissive::scatter(RNG &rng, Vec3 out, Vec2 uv) const
+	{
+		Scatter ret;
+		ret.direction = {};
+		ret.attenuation = {};
+		return ret;
+	}
 
-Spectrum Emissive::evaluate(Vec3 out, Vec3 in, Vec2 uv) const {
-	return {};
-}
+	float Emissive::pdf(Vec3 out, Vec3 in) const
+	{
+		return 0.0f;
+	}
 
-Scatter Emissive::scatter(RNG &rng, Vec3 out, Vec2 uv) const {
-	Scatter ret;
-	ret.direction = {};
-	ret.attenuation = {};
-	return ret;
-}
+	Spectrum Emissive::emission(Vec2 uv) const
+	{
+		return emissive.lock()->evaluate(uv);
+	}
 
-float Emissive::pdf(Vec3 out, Vec3 in) const {
-	return 0.0f;
-}
+	bool Emissive::is_emissive() const
+	{
+		return true;
+	}
 
-Spectrum Emissive::emission(Vec2 uv) const {
-	return emissive.lock()->evaluate(uv);
-}
+	bool Emissive::is_specular() const
+	{
+		return true;
+	}
 
-bool Emissive::is_emissive() const {
-	return true;
-}
+	bool Emissive::is_sided() const
+	{
+		return false;
+	}
 
-bool Emissive::is_specular() const {
-	return true;
-}
+	std::weak_ptr<Texture> Emissive::display() const
+	{
+		return emissive;
+	}
 
-bool Emissive::is_sided() const {
-	return false;
-}
-
-std::weak_ptr<Texture> Emissive::display() const {
-	return emissive;
-}
-
-void Emissive::for_each(const std::function<void(std::weak_ptr<Texture>&)>& f) {
-	f(emissive);
-}
+	void Emissive::for_each(const std::function<void(std::weak_ptr<Texture> &)> &f)
+	{
+		f(emissive);
+	}
 
 } // namespace Materials
 
-bool operator!=(const Materials::Lambertian& a, const Materials::Lambertian& b) {
+bool operator!=(const Materials::Lambertian &a, const Materials::Lambertian &b)
+{
 	return a.albedo.lock() != b.albedo.lock();
 }
 
-bool operator!=(const Materials::Mirror& a, const Materials::Mirror& b) {
+bool operator!=(const Materials::Mirror &a, const Materials::Mirror &b)
+{
 	return a.reflectance.lock() != b.reflectance.lock();
 }
 
-bool operator!=(const Materials::Refract& a, const Materials::Refract& b) {
+bool operator!=(const Materials::Refract &a, const Materials::Refract &b)
+{
 	return a.transmittance.lock() != b.transmittance.lock() || a.ior != b.ior;
 }
 
-bool operator!=(const Materials::Glass& a, const Materials::Glass& b) {
+bool operator!=(const Materials::Glass &a, const Materials::Glass &b)
+{
 	return a.reflectance.lock() != b.reflectance.lock() ||
-	       a.transmittance.lock() != b.transmittance.lock() || a.ior != b.ior;
+		   a.transmittance.lock() != b.transmittance.lock() || a.ior != b.ior;
 }
 
-bool operator!=(const Materials::Emissive& a, const Materials::Emissive& b) {
+bool operator!=(const Materials::Emissive &a, const Materials::Emissive &b)
+{
 	return a.emissive.lock() != b.emissive.lock();
 }
 
-bool operator!=(const Material& a, const Material& b) {
-	if (a.material.index() != b.material.index()) return false;
+bool operator!=(const Material &a, const Material &b)
+{
+	if (a.material.index() != b.material.index())
+		return false;
 	return std::visit(
-		[&](const auto& material) {
+		[&](const auto &material)
+		{
 			return material != std::get<std::decay_t<decltype(material)>>(b.material);
 		},
 		a.material);
