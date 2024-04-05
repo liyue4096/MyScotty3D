@@ -33,15 +33,15 @@ namespace PT
 		box.max = max;
 		if (abs(min.x - max.x) < FLT_EPSILON)
 		{
-			max.x = min.x;
+			max.x += FLT_EPSILON;
 		}
 		if (abs(min.y - max.y) < FLT_EPSILON)
 		{
-			max.y = min.y;
+			max.y += FLT_EPSILON;
 		}
 		if (abs(min.z - max.z) < FLT_EPSILON)
 		{
-			max.z = min.z;
+			max.z += FLT_EPSILON;
 		}
 
 		// std::cout << box;

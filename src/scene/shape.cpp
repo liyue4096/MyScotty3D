@@ -29,28 +29,42 @@ namespace Shapes
 		// TODO (PathTracer): Task 2
 		// Intersect this ray with a sphere of radius Sphere::radius centered at the origin.
 
-		// If the ray intersects the sphere twice, ret should
-		// represent the first intersection, but remember to respect
-		// ray.dist_bounds! For example, if there are two intersections,
-		// but only the _later_ one is within ray.dist_bounds, you should
-		// return that one!
+		//  If the ray intersects the sphere twice, ret should
+		//  represent the first intersection, but remember to respect
+		//  ray.dist_bounds! For example, if there are two intersections,
+		//  but only the _later_ one is within ray.dist_bounds, you should
+		//  return that one!
 
 		float a, b, c, delta_sq; // delta^2 = b^2 - 4*a*c
 		a = dot(ray.dir, ray.dir);
-		b = 2 * dot(ray.point, ray.dir);
+		b = 2.f * dot(ray.point, ray.dir);
 		c = dot(ray.point, ray.point) - radius * radius;
 		delta_sq = b * b - 4 * a * c;
 
 		PT::Trace ret;
 		ret.origin = ray.point;
-		ret.hit = false;	   // was there an intersection?
-		ret.distance = 0.0f;   // at what distance did the intersection occur?
-		ret.position = Vec3{}; // where was the intersection?
-		ret.normal = Vec3{};   // what was the surface normal at the intersection?
-		ret.uv = Vec2{};	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
+		ret.hit = false;		// was there an intersection?
+		ret.distance = FLT_MAX; // at what distance did the intersection occur?
+		ret.position = Vec3{};	// where was the intersection?
+		ret.normal = Vec3{};	// what was the surface normal at the intersection?
+		ret.uv = Vec2{};		// what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
 
 		float kEpsilon = 0.0000001f;
-		if (delta_sq <= kEpsilon)
+		if (abs(delta_sq) <= kEpsilon)
+		{
+			float t1 = -b / (2 * a);
+			if (t1 < ray.dist_bounds.x || t1 > ray.dist_bounds.y)
+			{
+				return ret;
+			}
+			ret.hit = true;					  // was there an intersection?
+			ret.distance = t1;				  // at what distance did the intersection occur?
+			ret.position = ray.at(t1);		  // where was the intersection?
+			ret.normal = ret.position.unit(); // what was the surface normal at the intersection?
+			ret.uv = uv(ret.normal);
+			return ret;
+		}
+		else if (delta_sq < -kEpsilon)
 		{
 			return ret;
 		}
@@ -58,18 +72,21 @@ namespace Shapes
 		float t1, t2, t;
 		t1 = (-b + sqrt(delta_sq)) / (2 * a);
 		t2 = (-b - sqrt(delta_sq)) / (2 * a);
-
-		if (t1 < 0 && t2 < 0)
+		if (t2 < t1)
+		{
+			std::swap(t1, t2);
+		}
+		if (t1 < ray.dist_bounds.x && t2 > ray.dist_bounds.y)
 		{
 			return ret;
 		}
-		if (t1 < 0 && t2 >= 0)
-		{
-			t = t2;
-		}
-		if (t1 >= 0 && t2 < 0)
+		if (t1 >= ray.dist_bounds.x && t2 >= ray.dist_bounds.y)
 		{
 			t = t1;
+		}
+		if (t1 <= ray.dist_bounds.x && t2 <= ray.dist_bounds.y)
+		{
+			t = t2;
 		}
 		else
 		{
@@ -83,9 +100,9 @@ namespace Shapes
 
 		ret.hit = true;
 		ret.distance = t;
-		ret.position = ret.origin + t * ray.dir;
+		ret.position = ray.at(t);
 		ret.normal = ret.position.unit();
-		ret.uv = uv(ret.position);
+		ret.uv = uv(ret.normal);
 
 		return ret;
 	}

@@ -13,7 +13,7 @@ namespace Materials
 		// reflected out in direction dir from surface
 		// with normal (0,1,0)
 		Vec3 ret = -dir + 2 * dot(Vec3(0.f, 1.f, 0.f), dir) * Vec3(0.f, 1.f, 0.f);
-		return ret;
+		return ret.unit();
 	}
 
 	Vec3 refract(Vec3 out_dir, float index_of_refraction, bool &was_internal)
@@ -24,19 +24,55 @@ namespace Materials
 		// Return the refracted direction. Set was_internal to true if
 		// refraction does not occur due to total internal reflection,
 		// and false otherwise.
+		float cosT = -out_dir.y;
+		float etaI = 1.0f, etaT = index_of_refraction;
+		Vec3 n(0, 1, 0);
+		if (cosT < 0)
+		{ // outside surface
+			cosT = -cosT;
+		}
+		else
+		{ // inside surface
+			std::swap(etaI, etaT);
+			n = -n;
+		}
+		float eta = (etaI / etaT);
+		float cos2I = 1.0f - eta * eta * (1.0f - cosT * cosT);
+		if (cos2I < 0)
+		{
+			// total internal reflection
+			was_internal = true;
+			return Vec3{0, 0, 0};
+		}
+		Vec3 dir = (eta * -out_dir + (eta * cosT - sqrtf(cos2I)) * n).unit();
 
-		// The surface normal is (0,1,0)
-
-		return Vec3{};
+		return dir;
 	}
 
 	float schlick(Vec3 in_dir, float index_of_refraction)
 	{
 		// A3T5 Materials - Schlick's approximation helper
-
 		// Implement Schlick's approximation of the Fresnel reflection factor.
-
-		return 0.0f;
+		float cosT = -in_dir.y;
+		float etaI = 1.0f, etaT = index_of_refraction;
+		if (cosT < 0)
+		{ // outside surface
+			cosT = -cosT;
+		}
+		else
+		{ // inside surface
+			std::swap(etaI, etaT);
+		}
+		float eta = (etaI / etaT);
+		float cos2I = 1.0f - eta * eta * (1.0f - cosT * cosT);
+		if (cos2I < 0)
+		{
+			// total internal reflection
+			return 1.0f;
+		}
+		float R0 = (etaI - etaT) / (etaI + etaT);
+		R0 *= R0;
+		return R0 + (1.0f - R0) * pow((1 - cosT), 5.0f);
 	}
 
 	Spectrum Lambertian::evaluate(Vec3 out, Vec3 in, Vec2 uv) const
@@ -47,10 +83,14 @@ namespace Materials
 		// is reflected through out_dir: (albedo / PI_F) * cos(theta).
 		// Note that for Scotty3D, y is the 'up' direction.
 		Vec3 normal(0.f, 1.f, 0.f);
-		float cos_theta = dot(in, normal) / in.norm();
-		Spectrum ret = albedo.lock()->evaluate(uv);
+		if (in.y > 0.f)
+		{
+			float cos_theta = dot(in.unit(), normal);
+			Spectrum ret = albedo.lock()->evaluate(uv);
 
-		return ret / PI_F * cos_theta;
+			return ret / PI_F * abs(cos_theta);
+		}
+		return {};
 	}
 
 	Scatter Lambertian::scatter(RNG &rng, Vec3 out, Vec2 uv) const
@@ -146,10 +186,28 @@ namespace Materials
 		// Don't forget that this is a discrete material!
 		// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
 		//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
-
 		Scatter ret;
-		ret.direction = Vec3();
-		ret.attenuation = Spectrum{};
+		bool was_internal = false;
+		ret.direction = refract(out, ior, was_internal);
+		if (was_internal)
+		{
+			ret.direction = reflect(out);
+			ret.attenuation = transmittance.lock()->evaluate(uv);
+		}
+		else
+		{
+			float cosT = -out.y;
+			float etaI = 1.0f, etaT = ior;
+			if (cosT < 0)
+			{ // outside surface
+				cosT = -cosT;
+			}
+			else
+			{ // inside surface
+				std::swap(etaI, etaT);
+			}
+			ret.attenuation = transmittance.lock()->evaluate(uv) * (etaI * etaI) / (etaT * etaT);
+		}
 		return ret;
 	}
 
@@ -207,9 +265,41 @@ namespace Materials
 		// For attenuation, be sure to take a look at the Specular Transimission section of the PBRT textbook for a derivation
 		//  You do not need to scale by the Fresnel Coefficient - you'll only need to account for the correct ratio of indices of refraction
 
+		// entering the surface
+		float f = schlick(out, ior);
+
 		Scatter ret;
-		ret.direction = Vec3();
-		ret.attenuation = Spectrum{};
+		if (rng.coin_flip(f))
+		{
+			// reflect
+			ret.direction = reflect(out);
+			ret.attenuation = reflectance.lock()->evaluate(uv);
+		}
+		else
+		{
+			// refract
+			bool was_internal = false;
+			ret.direction = refract(out, ior, was_internal);
+			if (was_internal)
+			{
+				ret.direction = reflect(out);
+				ret.attenuation = reflectance.lock()->evaluate(uv);
+			}
+			else
+			{
+				float cosT = -out.y;
+				float etaI = 1.0f, etaT = ior;
+				if (cosT < 0)
+				{ // outside surface
+					cosT = -cosT;
+				}
+				else
+				{ // inside surface
+					std::swap(etaI, etaT);
+				}
+				ret.attenuation = transmittance.lock()->evaluate(uv) * (etaI * etaI) / (etaT * etaT);
+			}
+		}
 		return ret;
 	}
 

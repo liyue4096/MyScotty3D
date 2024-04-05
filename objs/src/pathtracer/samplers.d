@@ -252,7 +252,15 @@
             "d:\\pittsci\\spring2024\\15662\\scotty3d\\deps\\glad\\khrplatform.h",
             "d:\\pittsci\\spring2024\\15662\\scotty3d\\src\\util\\rand.h",
             "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\random",
-            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\__msvc_int128.hpp"
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\__msvc_int128.hpp",
+            "d:\\pittsci\\spring2024\\15662\\scotty3d\\src\\scene\\shape.h",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\variant",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\xsmf_control.h",
+            "d:\\pittsci\\spring2024\\15662\\scotty3d\\src\\geometry\\indexed.h",
+            "d:\\pittsci\\spring2024\\15662\\scotty3d\\src\\pathtracer\\trace.h",
+            "d:\\pittsci\\spring2024\\15662\\scotty3d\\src\\scene\\introspect.h",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.37.32822\\include\\cassert",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\assert.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []
