@@ -9,6 +9,6 @@ README-SDL.txt
 SDL2.dll
 nest-libs/
 handin*
-*pdb
+*.pdb
 *.exr
 *.js3d
